@@ -1,4 +1,1 @@
-echo "커밋 컨벤션: type(scope): subject"
-echo "예시: feat(auth): 로그인 API 연결"
-echo "허용 type: feat, fix, docs, style, refactor, test, chore, build, ci"
 npx --no -- commitlint --edit "$1"
