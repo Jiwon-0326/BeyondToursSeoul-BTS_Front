@@ -1,0 +1,19 @@
+MSG_FILE="$1"
+SOURCE="$2"
+
+# 템플릿/머지 커밋 메시지는 기본 형식을 보존
+if [ "$SOURCE" = "message" ] || [ "$SOURCE" = "merge" ] || [ "$SOURCE" = "squash" ] || [ "$SOURCE" = "commit" ]; then
+  exit 0
+fi
+
+# 중복 주입 방지
+if grep -q "커밋 컨벤션: type(scope): subject" "$MSG_FILE"; then
+  exit 0
+fi
+
+cat <<'EOF' >> "$MSG_FILE"
+
+# 커밋 컨벤션: type(scope): subject
+# 예시: feat(auth): 로그인 API 연결
+# 허용 type: feat, fix, docs, style, refactor, test, chore, build, ci
+EOF
