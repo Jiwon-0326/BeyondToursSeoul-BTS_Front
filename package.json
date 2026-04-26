@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "prepare": "husky"
   },
   "dependencies": {
     "pinia": "^3.0.4",
@@ -14,7 +15,10 @@
     "vue-router": "^5.0.4"
   },
   "devDependencies": {
+    "@commitlint/cli": "^20.5.2",
+    "@commitlint/config-conventional": "^20.5.0",
     "@vitejs/plugin-vue": "^6.0.6",
+    "husky": "^9.1.7",
     "vite": "^8.0.8",
     "vite-plugin-vue-devtools": "^8.1.1"
   },
