@@ -2,7 +2,9 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useMapStore = defineStore('map', () => {
+  // marker shape: { lat, lng, label?, type?: 'start'|'end'|'default', crowdLevel?: 'low'|'medium'|'high' }
   const markers = ref([])
+  // polyline shape: [{ lat, lng }, ...]
   const polyline = ref([])
   const selectedMarkerId = ref(null)
   const mapCenter = ref({ lat: 37.5665, lng: 126.9780 }) // 서울 시청 기본값

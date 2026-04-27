@@ -1,39 +1,184 @@
 <script setup>
+import { onMounted, onUnmounted, watch, ref } from 'vue'
 import { useMapStore } from '@/stores/useMapStore'
-import MapMarker from './MapMarker.vue'
-import RoutePolyline from './RoutePolyline.vue'
 
 const mapStore = useMapStore()
+const mapRef = ref(null)
+
+let mapInstance = null
+let naverMarkers = []
+let naverPolyline = null
+
+// ── Naver Maps 스크립트 동적 로드 ─────────────────────────────
+function loadNaverMapScript() {
+  return new Promise((resolve, reject) => {
+    if (window.naver?.maps) {
+      resolve()
+      return
+    }
+    const existing = document.getElementById('naver-map-script')
+    if (existing) {
+      existing.addEventListener('load', resolve)
+      existing.addEventListener('error', reject)
+      return
+    }
+    const script = document.createElement('script')
+    script.id = 'naver-map-script'
+    script.src = `https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=${import.meta.env.VITE_NAVER_MAP_CLIENT_ID}`
+    script.async = true
+    script.onload = resolve
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+}
+
+// ── 마커 색상 헬퍼 ─────────────────────────────────────────────
+function markerColor(type, crowdLevel) {
+  if (type === 'start') return '#22c55e'
+  if (type === 'end') return '#ef4444'
+  if (crowdLevel === 'high') return '#ef4444'
+  if (crowdLevel === 'medium') return '#f97316'
+  return '#FE9C00'
+}
+
+function buildMarkerIcon(label, type, crowdLevel) {
+  const color = markerColor(type, crowdLevel)
+  const labelHtml = label
+    ? `<span style="
+        display:block;
+        margin-top:4px;
+        font-size:11px;
+        font-weight:600;
+        background:#fff;
+        border-radius:6px;
+        padding:2px 6px;
+        box-shadow:0 1px 4px rgba(0,0,0,.15);
+        white-space:nowrap;
+        color:#333;
+        text-align:center;
+      ">${label}</span>`
+    : ''
+  return {
+    content: `
+      <div style="
+        display:flex;
+        flex-direction:column;
+        align-items:center;
+        cursor:pointer;
+      ">
+        <div style="
+          width:16px;height:16px;
+          border-radius:50%;
+          background:${color};
+          border:2px solid #fff;
+          box-shadow:0 2px 6px rgba(0,0,0,.25);
+        "></div>
+        ${labelHtml}
+      </div>`,
+    anchor: new window.naver.maps.Point(8, 16),
+  }
+}
+
+// ── 마커 동기화 ────────────────────────────────────────────────
+function syncMarkers(markers) {
+  naverMarkers.forEach(m => m.setMap(null))
+  naverMarkers = []
+
+  markers.forEach(marker => {
+    if (marker.lat == null || marker.lng == null) return
+    const nm = new window.naver.maps.Marker({
+      position: new window.naver.maps.LatLng(marker.lat, marker.lng),
+      map: mapInstance,
+      icon: buildMarkerIcon(marker.label, marker.type, marker.crowdLevel),
+    })
+    naverMarkers.push(nm)
+  })
+}
+
+// ── 폴리라인 동기화 ────────────────────────────────────────────
+function syncPolyline(points) {
+  if (naverPolyline) {
+    naverPolyline.setMap(null)
+    naverPolyline = null
+  }
+  const latLngPoints = points.filter(p => p.lat != null && p.lng != null)
+  if (latLngPoints.length < 2) return
+
+  naverPolyline = new window.naver.maps.Polyline({
+    map: mapInstance,
+    path: latLngPoints.map(p => new window.naver.maps.LatLng(p.lat, p.lng)),
+    strokeColor: '#FE9C00',
+    strokeWeight: 4,
+    strokeOpacity: 0.9,
+    strokeLineCap: 'round',
+    strokeLineJoin: 'round',
+  })
+}
+
+// ── 지도 초기화 ────────────────────────────────────────────────
+onMounted(async () => {
+  window.navermap_authFailure = () => {
+    console.error('[NaverMap] 인증 실패: ncpKeyId를 확인하세요.')
+  }
+
+  await loadNaverMapScript()
+
+  const { lat, lng } = mapStore.mapCenter
+  mapInstance = new window.naver.maps.Map(mapRef.value, {
+    center: new window.naver.maps.LatLng(lat, lng),
+    zoom: 14,
+    mapTypeControl: false,
+    scaleControl: false,
+    logoControl: true,
+    mapDataControl: false,
+  })
+
+  syncMarkers(mapStore.markers)
+  syncPolyline(mapStore.polyline)
+})
+
+onUnmounted(() => {
+  naverMarkers.forEach(m => m.setMap(null))
+  if (naverPolyline) naverPolyline.setMap(null)
+  mapInstance = null
+  delete window.navermap_authFailure
+})
+
+// ── store 변경 반응 ────────────────────────────────────────────
+watch(
+  () => mapStore.markers,
+  (markers) => { if (mapInstance) syncMarkers(markers) },
+  { deep: true },
+)
+
+watch(
+  () => mapStore.polyline,
+  (points) => { if (mapInstance) syncPolyline(points) },
+  { deep: true },
+)
+
+watch(
+  () => mapStore.mapCenter,
+  ({ lat, lng }) => {
+    if (mapInstance)
+      mapInstance.setCenter(new window.naver.maps.LatLng(lat, lng))
+  },
+)
 </script>
 
 <template>
   <div class="map-view">
-    <div class="map-view__placeholder">
-      <p class="map-view__placeholder-text">🗺️ 지도 영역</p>
-      <p class="map-view__placeholder-sub">Kakao Map / Naver Map 연동 예정</p>
-    </div>
-
-    <div class="map-view__overlay" v-if="mapStore.markers.length">
-      <RoutePolyline :points="mapStore.polyline" />
-      <MapMarker
-        v-for="(marker, i) in mapStore.markers"
-        :key="i"
-        :label="marker.label"
-        :type="marker.type"
-        :crowd-level="marker.crowdLevel"
-        :style="{ left: `${marker.x}%`, top: `${marker.y}%` }"
-      />
-    </div>
+    <div ref="mapRef" class="map-view__canvas"></div>
 
     <div class="map-view__legend">
       <div class="legend-item"><span class="legend-dot legend-dot--ai"></span>AI 추천 동선</div>
       <div class="legend-item"><span class="legend-dot legend-dot--suggest"></span>추가 소재</div>
-      <div class="legend-item"><span class="legend-dot legend-dot--facility"></span>동반보험함</div>
-      <div class="legend-item">
-        <span>실시간 혼잡도</span>
-        <span class="crowd-dot crowd-dot--low"></span>낮음
-        <span class="crowd-dot crowd-dot--medium"></span>보통
-        <span class="crowd-dot crowd-dot--high"></span>높음
+      <div class="legend-item"><span class="legend-dot legend-dot--facility"></span>동반 편의시설</div>
+      <div class="legend-item crowd-row">
+        <span>혼잡도</span>
+        <span class="crowd-dot crowd-dot--low"></span><span>낮음</span>
+        <span class="crowd-dot crowd-dot--medium"></span><span>보통</span>
+        <span class="crowd-dot crowd-dot--high"></span><span>높음</span>
       </div>
     </div>
   </div>
@@ -44,36 +189,12 @@ const mapStore = useMapStore()
   width: 100%;
   height: 100%;
   position: relative;
-  background: #e8ede0;
   overflow: hidden;
 }
 
-.map-view__placeholder {
+.map-view__canvas {
   width: 100%;
   height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  background: linear-gradient(135deg, #d4e0c8 0%, #c0d0b0 100%);
-}
-
-.map-view__placeholder-text {
-  font-size: 32px;
-  margin: 0;
-}
-
-.map-view__placeholder-sub {
-  font-size: 12px;
-  color: #666;
-  margin: 0;
-}
-
-.map-view__overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
 }
 
 .map-view__legend {
@@ -85,10 +206,13 @@ const mapStore = useMapStore()
   padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
   font-size: 11px;
   color: #444;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  pointer-events: none;
 }
 
 .legend-item {
@@ -97,11 +221,16 @@ const mapStore = useMapStore()
   gap: 5px;
 }
 
+.crowd-row {
+  gap: 4px;
+}
+
 .legend-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 
 .legend-dot--ai       { background: #FE9C00; }
@@ -113,6 +242,7 @@ const mapStore = useMapStore()
   height: 8px;
   border-radius: 50%;
   display: inline-block;
+  flex-shrink: 0;
 }
 
 .crowd-dot--low    { background: #22c55e; }
