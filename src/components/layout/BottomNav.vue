@@ -1,15 +1,16 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
+import { Bookmark, Home, Map, Sparkles, UserRound } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 
 const navItems = [
-  { path: '/discover', icon: '🏠', label: '홈' },
-  { path: '/map',     icon: '🗺️', label: '지도' },
-  { path: '/ai',      icon: '✨', label: 'AI 코스', fab: true },
-  { path: '/saved',   icon: '🔖', label: '저장함' },
-  { path: '/profile', icon: '👤', label: '마이' },
+  { path: '/discover', icon: Home, label: '홈' },
+  { path: '/map', icon: Map, label: '지도' },
+  { path: '/ai', icon: Sparkles, label: 'AI 코스', fab: true },
+  { path: '/saved', icon: Bookmark, label: '저장함' },
+  { path: '/profile', icon: UserRound, label: '마이' },
 ]
 
 function navigate(path) {
@@ -27,7 +28,9 @@ function navigate(path) {
       @click="navigate(item.path)"
       :aria-label="item.label"
     >
-      <span class="bottom-nav__icon">{{ item.icon }}</span>
+      <span class="bottom-nav__icon">
+        <component :is="item.icon" class="bottom-nav__icon-svg" />
+      </span>
       <span class="bottom-nav__label">{{ item.label }}</span>
     </button>
   </nav>
@@ -86,8 +89,15 @@ function navigate(path) {
 }
 
 .bottom-nav__icon {
-  font-size: 22px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bottom-nav__icon-svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2;
 }
 
 .bottom-nav__label {
