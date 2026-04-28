@@ -1,5 +1,6 @@
 <script setup>
 import { computed, watch } from 'vue'
+import { Landmark, MapPin } from 'lucide-vue-next'
 
 const props = defineProps({
   modelValue: { type: Number, default: 50 },
@@ -70,11 +71,11 @@ const thumbCenterX = computed(() => {
 })
 
 const MODE_LABELS = Object.freeze({
-  0: { text: '유명 관광지 완전 위주', emoji: '🏛️' },
-  30: { text: '관광지 중심, 로컬 가미', emoji: '🗺️' },
-  50: { text: '관광지 & 로컬 균형', emoji: '⚖️' },
-  70: { text: '로컬 핀 중심, 관광지 가미', emoji: '📍' },
-  100: { text: '완전 로컬 핀 위주', emoji: '🏘️' },
+  0: { text: '유명 관광지 완전 위주' },
+  30: { text: '관광지 중심, 로컬 가미' },
+  50: { text: '관광지 & 로컬 균형' },
+  70: { text: '로컬 핀 중심, 관광지 가미' },
+  100: { text: '완전 로컬 핀 위주' },
 })
 
 const modeLabel = computed(() => MODE_LABELS[props.modelValue] ?? MODE_LABELS[50])
@@ -84,12 +85,16 @@ const modeLabel = computed(() => MODE_LABELS[props.modelValue] ?? MODE_LABELS[50
   <div class="slider">
     <div class="slider__endpoints">
       <div class="slider__endpoint">
-        <span class="slider__endpoint-icon">🏛️</span>
+        <span class="slider__endpoint-icon">
+          <Landmark :size="18" :stroke-width="2.2" color="#c97000" />
+        </span>
         <span class="slider__endpoint-label">관광지</span>
       </div>
       <p class="slider__mid-label">{{ modeLabel.text }}</p>
       <div class="slider__endpoint slider__endpoint--right">
-        <span class="slider__endpoint-icon">📍</span>
+        <span class="slider__endpoint-icon">
+          <MapPin :size="18" :stroke-width="2.2" color="#0ea5e9" />
+        </span>
         <span class="slider__endpoint-label">로컬 핀</span>
       </div>
     </div>
@@ -154,7 +159,11 @@ const modeLabel = computed(() => MODE_LABELS[props.modelValue] ?? MODE_LABELS[50
 }
 
 .slider__endpoint-icon {
-  font-size: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
 }
 
 .slider__endpoint-label {

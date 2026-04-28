@@ -1,7 +1,32 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plane } from 'lucide-vue-next'
+import {
+  Camera,
+  Car,
+  Coffee,
+  FileText,
+  Footprints,
+  Heart,
+  Home,
+  Landmark,
+  Leaf,
+  MapPin,
+  Moon,
+  Music2,
+  Palette,
+  Plane,
+  ShoppingBag,
+  Shuffle,
+  SkipForward,
+  Smartphone,
+  Soup,
+  Sparkles,
+  Train,
+  User,
+  Users,
+  Wifi,
+} from 'lucide-vue-next'
 import { useTripStore } from '@/stores/useTripStore'
 import GenerateLoading from './GenerateLoading.vue'
 import TravelDensitySlider from './TravelDensitySlider.vue'
@@ -45,37 +70,37 @@ const interests = ref([])
 const density = ref(50)
 
 const interestOptions = [
-  { id: 'cafe', icon: '☕', label: '카페' },
-  { id: 'food', icon: '🍜', label: '맛집' },
-  { id: 'history', icon: '🏯', label: '역사/문화' },
-  { id: 'nature', icon: '🌿', label: '자연' },
-  { id: 'art', icon: '🎨', label: '예술/전시' },
-  { id: 'kpop', icon: '🎤', label: 'K-팝/아이돌' },
-  { id: 'shopping', icon: '🛍️', label: '쇼핑' },
-  { id: 'activity', icon: '🏃', label: '액티비티' },
-  { id: 'healing', icon: '🧘', label: '힐링' },
-  { id: 'night', icon: '🌙', label: '야경/바' },
-  { id: 'photo', icon: '📸', label: '포토스팟' },
-  { id: 'local', icon: '📍', label: '로컬 탐방' },
+  { id: 'cafe', icon: Coffee, color: '#c97000', label: '카페' },
+  { id: 'food', icon: Soup, color: '#f97316', label: '맛집' },
+  { id: 'history', icon: Landmark, color: '#a16207', label: '역사/문화' },
+  { id: 'nature', icon: Leaf, color: '#16a34a', label: '자연' },
+  { id: 'art', icon: Palette, color: '#db2777', label: '예술/전시' },
+  { id: 'kpop', icon: Music2, color: '#7c3aed', label: 'K-팝/아이돌' },
+  { id: 'shopping', icon: ShoppingBag, color: '#0ea5e9', label: '쇼핑' },
+  { id: 'activity', icon: Footprints, color: '#ea580c', label: '액티비티' },
+  { id: 'healing', icon: Heart, color: '#ef4444', label: '힐링' },
+  { id: 'night', icon: Moon, color: '#2563eb', label: '야경/바' },
+  { id: 'photo', icon: Camera, color: '#0891b2', label: '포토스팟' },
+  { id: 'local', icon: MapPin, color: '#0d9488', label: '로컬 탐방' },
 ]
 
 const relationshipOptions = [
-  { id: '혼자', icon: '🧍', label: '혼자' },
-  { id: '친구', icon: '👯', label: '친구' },
-  { id: '가족', icon: '👨‍👩‍👧', label: '가족' },
-  { id: '연인', icon: '💑', label: '연인' },
+  { id: '혼자', icon: User, color: '#0ea5e9', label: '혼자' },
+  { id: '친구', icon: Users, color: '#6366f1', label: '친구' },
+  { id: '가족', icon: Home, color: '#16a34a', label: '가족' },
+  { id: '연인', icon: Heart, color: '#e11d48', label: '연인' },
 ]
 
 const mobilityOptions = [
-  { id: 'public', icon: '🚇', label: '대중교통 중심' },
-  { id: 'rental', icon: '🚗', label: '렌트카 중심' },
-  { id: 'hybrid', icon: '🔀', label: '혼합(상황별)' },
+  { id: 'public', icon: Train, color: '#0284c7', label: '대중교통 중심' },
+  { id: 'rental', icon: Car, color: '#f97316', label: '렌트카 중심' },
+  { id: 'hybrid', icon: Shuffle, color: '#7c3aed', label: '혼합(상황별)' },
 ]
 
 const simOptions = [
-  { id: 'skip', icon: '⏭️', label: '필요 없음' },
-  { id: 'esim', icon: '📶', label: 'eSIM 추천' },
-  { id: 'sim', icon: '📱', label: 'USIM 추천' },
+  { id: 'skip', icon: SkipForward, color: '#64748b', label: '필요 없음' },
+  { id: 'esim', icon: Wifi, color: '#0ea5e9', label: 'eSIM 추천' },
+  { id: 'sim', icon: Smartphone, color: '#f59e0b', label: 'USIM 추천' },
 ]
 
 const interestCount = computed(() => interests.value.length)
@@ -336,7 +361,7 @@ function blurStartDate() {
             <div class="ticket-modal__route-row">
               <div class="ticket-modal__route-strip" aria-hidden="true">
                 <span class="ticket-modal__airport-code">ICN</span>
-                <Plane class="ticket-modal__route-plane" :size="10" :stroke-width="2.3" />
+                <Plane class="ticket-modal__route-plane" :size="11" :stroke-width="2.3" />
                 <span class="ticket-modal__airport-code">GMP</span>
               </div>
               <span class="ticket-modal__route-duration">· {{ durationLabel || '-' }}</span>
@@ -437,7 +462,9 @@ function blurStartDate() {
 
           <div class="sheet__header">
             <div class="sheet__header-left">
-              <span class="sheet__header-icon">✨</span>
+              <span class="sheet__header-icon">
+                <Sparkles :size="26" :stroke-width="2.3" />
+              </span>
               <div>
                 <p class="sheet__title">AI 여행 코스 짜기</p>
                 <p class="sheet__subtitle">여행 정보와 취향을 알려주시면 맞춤 코스를 생성해요</p>
@@ -460,7 +487,13 @@ function blurStartDate() {
                   :class="{ 'travel-type-btn--active': relationship === item.id }"
                   @click="relationship = item.id"
                 >
-                  <span class="travel-type-btn__icon">{{ item.icon }}</span>
+                  <component
+                    :is="item.icon"
+                    class="travel-type-btn__icon"
+                    :size="20"
+                    :stroke-width="relationship === item.id ? 2.5 : 2.2"
+                    :color="item.color"
+                  />
                   <span class="travel-type-btn__label">{{ item.label }}</span>
                 </button>
               </div>
@@ -513,7 +546,13 @@ function blurStartDate() {
                   :class="{ 'sheet__option-btn--active': mobilityMode === item.id }"
                   @click="mobilityMode = item.id"
                 >
-                  <span class="sheet__option-icon">{{ item.icon }}</span>
+                  <component
+                    :is="item.icon"
+                    class="sheet__option-icon"
+                    :size="20"
+                    :stroke-width="mobilityMode === item.id ? 2.5 : 2.2"
+                    :color="item.color"
+                  />
                   <span class="sheet__option-label">{{ item.label }}</span>
                 </button>
               </div>
@@ -548,7 +587,13 @@ function blurStartDate() {
                   :disabled="atMaxInterests && !interests.includes(item.id)"
                   @click="toggleInterest(item.id)"
                 >
-                  <span class="interest-btn__icon">{{ item.icon }}</span>
+                  <component
+                    :is="item.icon"
+                    class="interest-btn__icon"
+                    :size="22"
+                    :stroke-width="interests.includes(item.id) ? 2.5 : 2.2"
+                    :color="item.color"
+                  />
                   <span class="interest-btn__label">{{ item.label }}</span>
                   <span v-if="interests.includes(item.id)" class="interest-btn__check">✓</span>
                 </button>
@@ -562,7 +607,9 @@ function blurStartDate() {
               :disabled="!canProceedReview"
               @click="proceedToReview"
             >
-              <span class="sheet__submit-icon">📝</span>
+              <span class="sheet__submit-icon">
+                <FileText :size="20" :stroke-width="2.4" color="#fff" />
+              </span>
               입력 내용 확인하기
             </button>
 
@@ -620,7 +667,13 @@ function blurStartDate() {
                     :class="{ 'sheet__option-btn--active': simOption === item.id }"
                     @click="simOption = item.id"
                   >
-                    <span class="sheet__option-icon">{{ item.icon }}</span>
+                    <component
+                      :is="item.icon"
+                      class="sheet__option-icon"
+                      :size="20"
+                      :stroke-width="simOption === item.id ? 2.5 : 2.2"
+                      :color="item.color"
+                    />
                     <span class="sheet__option-label">{{ item.label }}</span>
                   </button>
                 </div>
@@ -648,7 +701,9 @@ function blurStartDate() {
                   :disabled="!canSubmitGenerate"
                   @click="generate"
                 >
-                  <span class="sheet__submit-icon">✨</span>
+                  <span class="sheet__submit-icon">
+                    <Sparkles :size="20" :stroke-width="2.4" color="#fff" />
+                  </span>
                   이 내용으로 코스 생성
                 </button>
               </div>
@@ -1183,8 +1238,11 @@ function blurStartDate() {
 }
 
 .sheet__option-icon {
-  font-size: 19px;
-  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
 }
 
 .sheet__option-label {
@@ -1222,7 +1280,13 @@ function blurStartDate() {
   cursor: not-allowed;
 }
 
-.interest-btn__icon { font-size: 22px; }
+.interest-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+}
 
 .interest-btn__label {
   font-size: 11px;
@@ -1265,7 +1329,13 @@ function blurStartDate() {
   background: #fff8ec;
 }
 
-.travel-type-btn__icon { font-size: 20px; }
+.travel-type-btn__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
 
 .travel-type-btn__label {
   font-size: 12px;

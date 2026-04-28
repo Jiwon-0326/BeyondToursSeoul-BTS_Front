@@ -1,16 +1,16 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
-import { Bookmark, Home, Map, Sparkles, UserRound } from 'lucide-vue-next'
+import { IsIcon } from '@ratoufa/iconsax-vue'
 
 const route = useRoute()
 const router = useRouter()
 
 const navItems = [
-  { path: '/discover', icon: Home, label: '홈' },
-  { path: '/map', icon: Map, label: '지도' },
-  { path: '/ai', icon: Sparkles, label: 'AI 코스', fab: true },
-  { path: '/saved', icon: Bookmark, label: '저장함' },
-  { path: '/profile', icon: UserRound, label: '마이' },
+  { path: '/discover', icon: 'home', label: '홈' },
+  { path: '/map', icon: 'map', label: '지도' },
+  { path: '/ai', icon: 'magic-star', label: 'AI 코스', fab: true },
+  { path: '/saved', icon: 'bookmark', label: '저장함' },
+  { path: '/profile', icon: 'profile-circle', label: '마이' },
 ]
 
 function navigate(path) {
@@ -29,7 +29,12 @@ function navigate(path) {
       :aria-label="item.label"
     >
       <span class="bottom-nav__icon">
-        <component :is="item.icon" class="bottom-nav__icon-svg" />
+        <IsIcon
+          :name="item.icon"
+          class="bottom-nav__icon-svg"
+          :variant="item.fab || route.path === item.path ? 'bulk' : 'twotone'"
+          :size="22"
+        />
       </span>
       <span class="bottom-nav__label">{{ item.label }}</span>
     </button>
@@ -97,7 +102,6 @@ function navigate(path) {
 .bottom-nav__icon-svg {
   width: 22px;
   height: 22px;
-  stroke-width: 2;
 }
 
 .bottom-nav__label {

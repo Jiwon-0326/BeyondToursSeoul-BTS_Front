@@ -5,22 +5,8 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  Coffee,
-  CircleUserRound,
-  DollarSign,
-  Home,
-  Landmark,
-  Map,
-  MapPin,
-  MonitorPlay,
-  Plane,
-  ShoppingBag,
-  Soup,
-  Sun,
-  Sprout,
-  Wifi,
-  BookMarked,
 } from 'lucide-vue-next'
+import { IsIcon } from '@ratoufa/iconsax-vue'
 import AIInputSheet from '@/components/ai/AIInputSheet.vue'
 import earthImage from '../../asset/earth.png'
 import airplaneImage from '../../asset/airplane.png'
@@ -34,9 +20,9 @@ const courseTrackRef = ref(null)
 const activeCourseIndex = ref(0)
 
 const headerLiveInfo = [
-  { id: 'weather', icon: Sun, label: '날씨', value: '22℃ / 맑음 봄' },
-  { id: 'crowd', icon: MapPin, label: '혼잡도', value: '성수동 보통' },
-  { id: 'fx', icon: DollarSign, label: '환율', value: '1USD = 1,350₩' },
+  { id: 'weather', icon: 'sun-1', label: '날씨', value: '22℃ / 맑음 봄' },
+  { id: 'crowd', icon: 'location', label: '혼잡도', value: '성수동 보통' },
+  { id: 'fx', icon: 'dollar-circle', label: '환율', value: '1USD = 1,350₩' },
 ]
 
 const realtimeHotPlaces = [
@@ -48,12 +34,12 @@ const realtimeHotPlaces = [
 ]
 
 const categories = [
-  { id: 'food',    icon: Soup, label: '맛집' },
-  { id: 'cafe',    icon: Coffee, label: '카페' },
-  { id: 'nature',  icon: Sprout, label: '자연/힐링' },
-  { id: 'culture', icon: Landmark, label: '전통문화' },
-  { id: 'travel',  icon: Plane, label: '여행' },
-  { id: 'shop',    icon: ShoppingBag, label: '쇼핑' },
+  { id: 'food', icon: 'cup', color: '#f97316', label: '맛집' },
+  { id: 'cafe', icon: 'coffee', color: '#c97000', label: '카페' },
+  { id: 'nature', icon: 'tree', color: '#16a34a', label: '자연/힐링' },
+  { id: 'culture', icon: 'courthouse', color: '#a16207', label: '전통문화' },
+  { id: 'travel', icon: 'airplane', color: '#2563eb', label: '여행' },
+  { id: 'shop', icon: 'shop', color: '#0891b2', label: '쇼핑' },
 ]
 
 const densityModes = [
@@ -190,7 +176,7 @@ watch(
             <span class="discover__notif-dot"></span>
           </button>
           <div class="discover__avatar">
-            <CircleUserRound :size="17" :stroke-width="2.1" />
+            <IsIcon name="profile-circle" variant="twotone" :size="18" />
           </div>
         </div>
       </div>
@@ -204,14 +190,20 @@ watch(
           <p class="discover__greeting-sub">오늘 서울은 어디가 핫할까요?</p>
         </div>
         <aside class="discover__live-brief" aria-label="실시간 핵심 정보">
-          <Wifi class="discover__live-brief-icon" :size="12" :stroke-width="2.3" aria-hidden="true" />
+          <IsIcon
+            name="wifi"
+            variant="bulk"
+            class="discover__live-brief-icon"
+            :size="12"
+            aria-hidden="true"
+          />
           <div class="discover__live-list">
             <p
               v-for="item in headerLiveInfo"
               :key="item.id"
               class="discover__live-line"
             >
-              <component :is="item.icon" class="discover__live-item-icon" :size="10" :stroke-width="2.3" />
+              <IsIcon :name="item.icon" variant="bulk" class="discover__live-item-icon" :size="10" />
               <span class="discover__live-label">{{ item.label }}</span>
               <span class="discover__live-value">{{ item.value }}</span>
             </p>
@@ -312,7 +304,13 @@ watch(
           :class="{ 'cat-btn--active': activeCategory === cat.id }"
           @click="selectCategory(cat.id)"
         >
-          <component :is="cat.icon" class="cat-btn__icon" :size="22" :stroke-width="2.2" />
+          <IsIcon
+            :name="cat.icon"
+            class="cat-btn__icon"
+            :variant="activeCategory === cat.id ? 'bulk' : 'twotone'"
+            :size="22"
+            :color="cat.color"
+          />
           <span class="cat-btn__label">{{ cat.label }}</span>
         </button>
       </div>
@@ -322,35 +320,35 @@ watch(
     <nav class="discover__nav">
       <button class="nav-btn nav-btn--active" aria-label="홈">
         <span class="nav-btn__icon-wrap">
-          <Home class="nav-btn__icon" :size="19" :stroke-width="2.4" />
+          <IsIcon name="home" class="nav-btn__icon" variant="bulk" :size="19" />
         </span>
         <span>홈</span>
       </button>
 
       <button class="nav-btn" aria-label="지도">
         <span class="nav-btn__icon-wrap">
-          <Map class="nav-btn__icon" :size="19" :stroke-width="2.4" />
+          <IsIcon name="map" class="nav-btn__icon" variant="twotone" :size="19" />
         </span>
         <span>지도</span>
       </button>
 
       <button class="nav-btn nav-btn--center" aria-label="AI 여행 코스 짜기" @click="showAISheet = true">
         <span class="nav-btn__icon-wrap">
-          <MonitorPlay class="nav-btn__icon" :size="19" :stroke-width="2.4" />
+          <IsIcon name="magic-star" class="nav-btn__icon" variant="bulk" :size="19" />
         </span>
         <span>AI 코스</span>
       </button>
 
       <button class="nav-btn" aria-label="저장함">
         <span class="nav-btn__icon-wrap">
-          <BookMarked class="nav-btn__icon" :size="19" :stroke-width="2.4" />
+          <IsIcon name="bookmark" class="nav-btn__icon" variant="twotone" :size="19" />
         </span>
         <span>저장함</span>
       </button>
 
       <button class="nav-btn" aria-label="마이">
         <span class="nav-btn__icon-wrap">
-          <CircleUserRound class="nav-btn__icon" :size="19" :stroke-width="2.4" />
+          <IsIcon name="profile-circle" class="nav-btn__icon" variant="twotone" :size="19" />
         </span>
         <span>마이</span>
       </button>
