@@ -2,10 +2,14 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 
 export const useMapStore = defineStore('map', () => {
+  // marker shape: { lat, lng, label?, type?: 'start'|'end'|'default', crowdLevel?: 'low'|'medium'|'high' }
   const markers = ref([])
+  // polyline shape: [{ lat, lng }, ...]
   const polyline = ref([])
   const selectedMarkerId = ref(null)
   const mapCenter = ref({ lat: 37.5665, lng: 126.9780 }) // 서울 시청 기본값
+  // 현재 GPS 위치 { lat, lng } | null
+  const currentLocation = ref(null)
 
   function setMarkers(newMarkers) {
     markers.value = newMarkers
@@ -23,6 +27,10 @@ export const useMapStore = defineStore('map', () => {
     mapCenter.value = { lat, lng }
   }
 
+  function setCurrentLocation(lat, lng) {
+    currentLocation.value = { lat, lng }
+  }
+
   function reset() {
     markers.value = []
     polyline.value = []
@@ -34,10 +42,12 @@ export const useMapStore = defineStore('map', () => {
     polyline,
     selectedMarkerId,
     mapCenter,
+    currentLocation,
     setMarkers,
     setPolyline,
     selectMarker,
     setCenter,
+    setCurrentLocation,
     reset,
   }
 })
