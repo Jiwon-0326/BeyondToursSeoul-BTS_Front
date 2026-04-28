@@ -8,6 +8,7 @@ const mapRef = ref(null)
 let mapInstance = null
 let naverMarkers = []
 let naverPolyline = null
+let currentLocationMarker = null
 
 // ── Naver Maps 스크립트 동적 로드 ─────────────────────────────
 function loadNaverMapScript() {
@@ -29,6 +30,51 @@ function loadNaverMapScript() {
     script.onload = resolve
     script.onerror = reject
     document.head.appendChild(script)
+  })
+}
+
+// ── 현재 위치 마커 ─────────────────────────────────────────────
+function buildCurrentLocationIcon() {
+  return {
+    content: `
+      <div style="position:relative;width:24px;height:24px;">
+        <div style="
+          position:absolute;inset:0;
+          border-radius:50%;
+          background:rgba(66,133,244,0.25);
+          animation:loc-pulse 1.8s ease-out infinite;
+        "></div>
+        <div style="
+          position:absolute;top:50%;left:50%;
+          transform:translate(-50%,-50%);
+          width:14px;height:14px;
+          border-radius:50%;
+          background:#4285F4;
+          border:2.5px solid #fff;
+          box-shadow:0 2px 6px rgba(66,133,244,0.5);
+        "></div>
+        <style>
+          @keyframes loc-pulse {
+            0%   { transform:scale(0.5); opacity:0.8; }
+            100% { transform:scale(2.2); opacity:0; }
+          }
+        </style>
+      </div>`,
+    anchor: new window.naver.maps.Point(12, 12),
+  }
+}
+
+function syncCurrentLocation(loc) {
+  if (currentLocationMarker) {
+    currentLocationMarker.setMap(null)
+    currentLocationMarker = null
+  }
+  if (!loc) return
+  currentLocationMarker = new window.naver.maps.Marker({
+    position: new window.naver.maps.LatLng(loc.lat, loc.lng),
+    map: mapInstance,
+    icon: buildCurrentLocationIcon(),
+    zIndex: 200,
   })
 }
 
@@ -135,11 +181,13 @@ onMounted(async () => {
 
   syncMarkers(mapStore.markers)
   syncPolyline(mapStore.polyline)
+  syncCurrentLocation(mapStore.currentLocation)
 })
 
 onUnmounted(() => {
   naverMarkers.forEach(m => m.setMap(null))
   if (naverPolyline) naverPolyline.setMap(null)
+  if (currentLocationMarker) currentLocationMarker.setMap(null)
   mapInstance = null
   delete window.navermap_authFailure
 })
@@ -163,6 +211,11 @@ watch(
     if (mapInstance)
       mapInstance.setCenter(new window.naver.maps.LatLng(lat, lng))
   },
+)
+
+watch(
+  () => mapStore.currentLocation,
+  (loc) => { if (mapInstance) syncCurrentLocation(loc) },
 )
 </script>
 
