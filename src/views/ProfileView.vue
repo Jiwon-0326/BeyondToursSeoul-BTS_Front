@@ -1,11 +1,26 @@
 <script setup>
+import { onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { Bell, Globe, Settings, UserRound } from 'lucide-vue-next'
+import { useAuthStore } from '@/stores/useAuthStore'
+
+const authStore = useAuthStore()
+const router = useRouter()
 
 const menuItems = [
   { id: 'lang', icon: Globe, label: '언어 설정', value: '한국어' },
   { id: 'alarm', icon: Bell, label: '알림 설정', value: '켜짐' },
   { id: 'pref', icon: Settings, label: '여행 취향 관리', value: '수정 가능' },
 ]
+
+onMounted(() => {
+  authStore.loadMe().catch(() => null)
+})
+
+function logout() {
+  authStore.clearSession()
+  router.replace('/')
+}
 </script>
 
 <template>
@@ -21,8 +36,8 @@ const menuItems = [
     </header>
 
     <section class="profile__card">
-      <p class="profile__name">Explorer 님</p>
-      <p class="profile__email">explorer@bts.app</p>
+      <p class="profile__name">{{ authStore.user?.nickname || 'Explorer' }} 님</p>
+      <p class="profile__email">{{ authStore.user?.email || '로그인이 필요합니다.' }}</p>
     </section>
 
     <section class="profile__menu">
@@ -34,6 +49,10 @@ const menuItems = [
         <span class="profile__menu-value">{{ item.value }}</span>
       </button>
     </section>
+
+    <button class="profile__logout" type="button" @click="logout">
+      로그아웃
+    </button>
   </div>
 </template>
 
@@ -126,5 +145,18 @@ const menuItems = [
   color: #8b8b8b;
   font-size: 12px;
   font-weight: 700;
+}
+
+.profile__logout {
+  margin-top: 16px;
+  width: 100%;
+  border: 1px solid #ffd7d7;
+  background: #fff5f5;
+  color: #d14343;
+  border-radius: 12px;
+  padding: 11px 12px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
 }
 </style>

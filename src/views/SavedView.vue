@@ -1,20 +1,22 @@
 <script setup>
-import { Heart, MapPin, Sparkles } from 'lucide-vue-next'
+import { computed, ref } from 'vue'
+import { CalendarDays, Heart, MapPin, Sparkles } from 'lucide-vue-next'
+import { useSavedStore } from '@/stores/useSavedStore'
 
-const savedCourses = [
-  {
-    id: 1,
-    title: '감성 서울 1일 코스',
-    route: '성수동 -> 서울숲 -> 뚝섬 한강공원',
-    tags: ['감성', '산책', '카페'],
-  },
-  {
-    id: 2,
-    title: '야경 중심 코스',
-    route: '남산타워 -> 이태원 -> 반포한강공원',
-    tags: ['야경', '사진', '데이트'],
-  },
+const savedStore = useSavedStore()
+const activeTab = ref('course')
+
+const tabs = [
+  { id: 'course', label: '여행 코스' },
+  { id: 'place', label: '관광지' },
+  { id: 'event', label: '행사' },
 ]
+
+const activeItems = computed(() => {
+  if (activeTab.value === 'place') return savedStore.savedPlaces
+  if (activeTab.value === 'event') return savedStore.savedEvents
+  return savedStore.savedCourses
+})
 </script>
 
 <template>
@@ -27,24 +29,50 @@ const savedCourses = [
     <section class="saved__summary">
       <div class="saved__summary-item">
         <Heart :size="16" :stroke-width="2.2" />
-        <span>저장 코스 {{ savedCourses.length }}개</span>
+        <span>저장 코스 {{ savedStore.savedCourses.length }}개</span>
       </div>
       <div class="saved__summary-item">
         <Sparkles :size="16" :stroke-width="2.2" />
-        <span>최근 업데이트: 오늘</span>
+        <span>관광지 {{ savedStore.savedPlaces.length }} · 행사 {{ savedStore.savedEvents.length }}</span>
       </div>
     </section>
 
+    <section class="saved__tabs">
+      <button
+        v-for="tab in tabs"
+        :key="tab.id"
+        class="saved__tab"
+        :class="{ 'saved__tab--active': activeTab === tab.id }"
+        type="button"
+        @click="activeTab = tab.id"
+      >
+        {{ tab.label }}
+      </button>
+    </section>
+
     <section class="saved__list">
-      <article v-for="course in savedCourses" :key="course.id" class="saved-card">
-        <h2 class="saved-card__title">{{ course.title }}</h2>
+      <article v-for="item in activeItems" :key="item.id" class="saved-card">
+        <h2 class="saved-card__title">
+          {{ item.title || item.name }}
+        </h2>
         <p class="saved-card__route">
-          <MapPin :size="14" :stroke-width="2.2" />
-          <span>{{ course.route }}</span>
+          <template v-if="activeTab === 'event'">
+            <CalendarDays :size="14" :stroke-width="2.2" />
+            <span>{{ item.period || '기간 정보 없음' }}</span>
+          </template>
+          <template v-else>
+            <MapPin :size="14" :stroke-width="2.2" />
+            <span>{{ item.route || item.name }}</span>
+          </template>
         </p>
-        <div class="saved-card__tags">
-          <span v-for="tag in course.tags" :key="tag" class="saved-card__tag">#{{ tag }}</span>
+        <div v-if="item.tags?.length" class="saved-card__tags">
+          <span v-for="tag in item.tags" :key="tag" class="saved-card__tag">#{{ tag }}</span>
         </div>
+      </article>
+
+      <article v-if="!activeItems.length" class="saved-card saved-card--empty">
+        <h2 class="saved-card__title">아직 저장된 항목이 없어요</h2>
+        <p class="saved-card__route">홈 추천 코스의 하트 버튼으로 저장해보세요.</p>
       </article>
     </section>
   </div>
@@ -74,6 +102,30 @@ const savedCourses = [
   margin-top: 14px;
   display: grid;
   gap: 8px;
+}
+
+.saved__tabs {
+  margin-top: 14px;
+  display: flex;
+  gap: 8px;
+}
+
+.saved__tab {
+  flex: 1;
+  border: 1px solid #efdfc6;
+  background: #fff9ef;
+  color: #8f6a2f;
+  border-radius: 999px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.saved__tab--active {
+  background: #fe9c00;
+  border-color: #fe9c00;
+  color: #fff;
 }
 
 .saved__summary-item {
@@ -123,6 +175,10 @@ const savedCourses = [
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.saved-card--empty {
+  text-align: center;
 }
 
 .saved-card__tag {

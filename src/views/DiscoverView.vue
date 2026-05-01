@@ -5,14 +5,17 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
+  Heart,
 } from 'lucide-vue-next'
 import { IsIcon } from '@ratoufa/iconsax-vue'
 import AIInputSheet from '@/components/ai/AIInputSheet.vue'
+import { useSavedStore } from '@/stores/useSavedStore'
 import earthImage from '../../asset/earth.png'
 import airplaneImage from '../../asset/airplane.png'
 
 const router = useRouter()
 const route = useRoute()
+const savedStore = useSavedStore()
 const showAISheet = ref(false)
 const activeCategory = ref(null)
 const courseDensityIndex = ref(2)
@@ -94,6 +97,21 @@ const coursePhotos = [
 const currentCourses = computed(
   () => densityCourseMap[densityModes[courseDensityIndex.value].id] ?? [],
 )
+
+function getHomeCourseRefId(course) {
+  return `course:${densityModes[courseDensityIndex.value].id}:${course.id}`
+}
+
+function isCourseSaved(course) {
+  return savedStore.isSaved('course', getHomeCourseRefId(course))
+}
+
+function toggleSaveCourse(course) {
+  savedStore.toggleCourseFromHome({
+    course,
+    densityModeId: densityModes[courseDensityIndex.value].id,
+  })
+}
 
 function changeCourseDensity(delta) {
   const last = densityModes.length - 1
@@ -250,6 +268,15 @@ watch(
           }"
         >
           <div class="discover-course-card__photo-overlay"></div>
+          <button
+            class="discover-course-card__save-btn"
+            :class="{ 'discover-course-card__save-btn--active': isCourseSaved(course) }"
+            type="button"
+            :aria-label="isCourseSaved(course) ? '저장 해제' : '저장하기'"
+            @click.stop="toggleSaveCourse(course)"
+          >
+            <Heart :size="14" :stroke-width="2.3" />
+          </button>
           <p class="discover-course-card__title">{{ course.title }}</p>
           <p class="discover-course-card__route">{{ course.route }}</p>
           <div class="discover-course-card__tags">
@@ -762,6 +789,33 @@ watch(
     rgba(0, 0, 0, 0.84) 100%
   );
   pointer-events: none;
+}
+
+.discover-course-card__save-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  background: rgba(0, 0, 0, 0.3);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  transition: transform 0.12s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.discover-course-card__save-btn:active {
+  transform: scale(0.93);
+}
+
+.discover-course-card__save-btn--active {
+  background: rgba(254, 156, 0, 0.94);
+  border-color: rgba(255, 233, 194, 0.95);
 }
 
 .discover-course-card__title {
