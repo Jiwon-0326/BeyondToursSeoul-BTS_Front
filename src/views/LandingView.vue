@@ -1,10 +1,16 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
+import { getGoogleLoginUrl } from '@/services/authService'
+import { useAuthStore } from '@/stores/useAuthStore'
 
 const router = useRouter()
+const authStore = useAuthStore()
 const selectedLang = ref('Language / 언어')
 const showLangDrop = ref(false)
+const email = ref('')
+const password = ref('')
+const loginError = ref('')
 
 const languages = [
   { code: 'en', label: 'English' },
@@ -23,7 +29,18 @@ function selectLang(lang) {
 }
 
 function go() {
-  router.push('/discover')
+  window.location.href = getGoogleLoginUrl()
+}
+
+async function loginWithEmail() {
+  loginError.value = ''
+  try {
+    await authStore.login(email.value.trim(), password.value)
+    await authStore.loadMe().catch(() => null)
+    router.push('/discover')
+  } catch (e) {
+    loginError.value = e.message || '로그인에 실패했습니다.'
+  }
 }
 </script>
 
@@ -138,6 +155,27 @@ function go() {
           <span class="landing__or-line"></span>
           <span class="landing__or-text">or continue with email</span>
           <span class="landing__or-line"></span>
+        </div>
+
+        <div class="landing__email-box">
+          <input
+            v-model="email"
+            class="landing__input"
+            type="email"
+            placeholder="Email"
+            autocomplete="email"
+          />
+          <input
+            v-model="password"
+            class="landing__input"
+            type="password"
+            placeholder="Password"
+            autocomplete="current-password"
+          />
+          <button class="landing__btn landing__btn--email" @click="loginWithEmail" :disabled="authStore.isLoading">
+            {{ authStore.isLoading ? '로그인 중...' : '로그인' }}
+          </button>
+          <p v-if="loginError" class="landing__error">{{ loginError }}</p>
         </div>
 
         <!-- Dots -->
@@ -373,6 +411,44 @@ function go() {
 }
 
 .landing__btn--google img { width: 20px; height: 20px; }
+
+.landing__email-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.landing__input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 14px;
+}
+
+.landing__input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.landing__btn--email {
+  background: #fe9c00;
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(254, 156, 0, 0.35);
+}
+
+.landing__btn--email:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.landing__error {
+  margin: 0;
+  font-size: 12px;
+  color: #ffb4b4;
+  font-weight: 700;
+}
 
 /* OR divider */
 .landing__or {

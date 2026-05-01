@@ -5,6 +5,7 @@ import ResultView   from '@/views/ResultView.vue'
 import MapPageView  from '@/views/MapPageView.vue'
 import SavedView    from '@/views/SavedView.vue'
 import ProfileView  from '@/views/ProfileView.vue'
+import AuthCallbackView from '@/views/AuthCallbackView.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -16,6 +17,7 @@ const router = createRouter({
     { path: '/map',      name: 'map',      component: MapPageView },
     { path: '/saved',    name: 'saved',    component: SavedView },
     { path: '/profile',  name: 'profile',  component: ProfileView },
+    { path: '/auth/callback', name: 'auth-callback', component: AuthCallbackView },
   ],
 })
 
