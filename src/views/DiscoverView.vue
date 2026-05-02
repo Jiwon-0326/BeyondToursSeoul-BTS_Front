@@ -1,15 +1,17 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   Bell,
   ChevronLeft,
   ChevronRight,
   Heart,
+  MapPin,
 } from 'lucide-vue-next'
 import { IsIcon } from '@ratoufa/iconsax-vue'
 import AIInputSheet from '@/components/ai/AIInputSheet.vue'
 import { useSavedStore } from '@/stores/useSavedStore'
+import { fetchAttractions } from '@/services/attractionService'
 import earthImage from '../../asset/earth.png'
 import airplaneImage from '../../asset/airplane.png'
 
@@ -37,12 +39,16 @@ const realtimeHotPlaces = [
 ]
 
 const categories = [
-  { id: 'food', icon: 'cup', color: '#f97316', label: '맛집' },
-  { id: 'cafe', icon: 'coffee', color: '#c97000', label: '카페' },
-  { id: 'nature', icon: 'tree', color: '#16a34a', label: '자연/힐링' },
-  { id: 'culture', icon: 'courthouse', color: '#a16207', label: '전통문화' },
-  { id: 'travel', icon: 'airplane', color: '#2563eb', label: '여행' },
-  { id: 'shop', icon: 'shop', color: '#0891b2', label: '쇼핑' },
+  { id: '추천코스',      icon: 'routing',        color: '#fe9c00', label: '추천코스' },
+  { id: '음식',         icon: 'cup',             color: '#f97316', label: '음식' },
+  { id: '체험관광',      icon: 'people',          color: '#8b5cf6', label: '체험관광' },
+  { id: '숙박',         icon: 'home',            color: '#0891b2', label: '숙박' },
+  { id: '자연관광',      icon: 'tree',            color: '#16a34a', label: '자연관광' },
+  { id: '쇼핑',         icon: 'shop',            color: '#ec4899', label: '쇼핑' },
+  { id: '문화관광',      icon: 'courthouse',      color: '#a16207', label: '문화관광' },
+  { id: '축제/공연/행사', icon: 'music',           color: '#e11d48', label: '축제/행사' },
+  { id: '레저스포츠',    icon: 'activity',        color: '#2563eb', label: '레저스포츠' },
+  { id: '역사관광',      icon: 'building',        color: '#78716c', label: '역사관광' },
 ]
 
 const densityModes = [
@@ -147,8 +153,32 @@ watch(courseDensityIndex, () => {
   courseTrackRef.value?.scrollTo({ left: 0, behavior: 'auto' })
 })
 
+const attractions = ref([])
+const attractionsLoading = ref(false)
+const attractionsError = ref(null)
+
+onMounted(async () => {
+  attractionsLoading.value = true
+  try {
+    attractions.value = await fetchAttractions()
+  } catch (e) {
+    attractionsError.value = e.message
+  } finally {
+    attractionsLoading.value = false
+  }
+})
+
+const filteredAttractions = computed(() => {
+  if (!activeCategory.value) return attractions.value
+  return attractions.value.filter((a) => a.cat1Name === activeCategory.value)
+})
+
 function selectCategory(id) {
   activeCategory.value = activeCategory.value === id ? null : id
+}
+
+function goToAttraction(id) {
+  router.push({ name: 'attraction-detail', params: { id } })
 }
 
 function onCourseGenerated() {
@@ -339,6 +369,57 @@ watch(
             :color="cat.color"
           />
           <span class="cat-btn__label">{{ cat.label }}</span>
+        </button>
+      </div>
+
+      <!-- Attractions list -->
+      <div class="discover__attractions">
+        <!-- Loading -->
+        <div v-if="attractionsLoading" class="discover__attractions-loading">
+          <div class="discover__attractions-spinner"></div>
+          <span>관광지 목록 불러오는 중...</span>
+        </div>
+
+        <!-- Error -->
+        <p v-else-if="attractionsError" class="discover__attractions-error">
+          {{ attractionsError }}
+        </p>
+
+        <!-- Empty -->
+        <p v-else-if="filteredAttractions.length === 0" class="discover__attractions-empty">
+          해당 카테고리의 관광지가 없습니다.
+        </p>
+
+        <!-- Cards -->
+        <button
+          v-else
+          v-for="attraction in filteredAttractions"
+          :key="attraction.id"
+          class="attraction-card"
+          @click="goToAttraction(attraction.id)"
+        >
+          <div class="attraction-card__thumb-wrap">
+            <img
+              v-if="attraction.imageUrl || attraction.image_url || attraction.thumbnail"
+              class="attraction-card__thumb"
+              :src="attraction.imageUrl || attraction.image_url || attraction.thumbnail"
+              :alt="attraction.name"
+            />
+            <div v-else class="attraction-card__thumb-placeholder"></div>
+          </div>
+          <div class="attraction-card__info">
+            <p class="attraction-card__name">{{ attraction.name }}</p>
+            <p v-if="attraction.address" class="attraction-card__address">
+              <MapPin :size="11" :stroke-width="2" class="attraction-card__pin" />
+              {{ attraction.address }}
+            </p>
+            <div class="attraction-card__meta">
+              <span v-if="attraction.cat1Name" class="attraction-card__cat">
+                {{ attraction.cat1Name }}
+              </span>
+            </div>
+          </div>
+          <ChevronRight :size="16" :stroke-width="2.2" class="attraction-card__arrow" />
         </button>
       </div>
     </section>
@@ -959,6 +1040,147 @@ watch(
 }
 
 .cat-btn--active .cat-btn__label { color: #c97000; }
+
+/* ─── Attractions list ───────────────────────────────────────────────────── */
+.discover__attractions {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.discover__attractions-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 0;
+  color: #888;
+  font-size: 13px;
+}
+
+.discover__attractions-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ffe3ba;
+  border-top-color: #fe9c00;
+  border-radius: 50%;
+  animation: discover-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes discover-spin {
+  to { transform: rotate(360deg); }
+}
+
+.discover__attractions-error,
+.discover__attractions-empty {
+  text-align: center;
+  padding: 24px 0;
+  font-size: 13px;
+  color: #aaa;
+}
+
+.discover__attractions-error {
+  color: #ef4444;
+}
+
+.attraction-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fafaf8;
+  border: 1.5px solid #efefed;
+  border-radius: 14px;
+  padding: 12px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.attraction-card:active {
+  transform: scale(0.98);
+  background: #fff8ec;
+  border-color: #ffe3ba;
+}
+
+.attraction-card__thumb-wrap {
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #efefed;
+}
+
+.attraction-card__thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.attraction-card__thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #e8e6e0 0%, #d4d0c8 100%);
+}
+
+.attraction-card__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.attraction-card__name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attraction-card__address {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attraction-card__pin {
+  color: #fe9c00;
+  flex-shrink: 0;
+}
+
+.attraction-card__meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.attraction-card__cat {
+  font-size: 10px;
+  font-weight: 700;
+  color: #a36b18;
+  background: #fff3df;
+  border: 1px solid #ffe3ba;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.attraction-card__arrow {
+  color: #ccc;
+  flex-shrink: 0;
+}
 
 /* ─── Bottom Nav ─────────────────────────────────────────────────────────── */
 .discover__nav {
