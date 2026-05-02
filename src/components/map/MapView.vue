@@ -80,64 +80,75 @@ function syncCurrentLocation(loc) {
 
 // ── 마커 색상 헬퍼 ─────────────────────────────────────────────
 function markerColor(type, crowdLevel) {
-  if (type === 'start') return '#22c55e'
-  if (type === 'end') return '#ef4444'
-  if (crowdLevel === 'high') return '#ef4444'
+  if (type === 'start')  return '#22c55e'
+  if (type === 'end')    return '#ef4444'
+  if (type === 'locker') return '#0d9488'
+  if (crowdLevel === 'high')   return '#ef4444'
   if (crowdLevel === 'medium') return '#f97316'
   return '#FE9C00'
 }
 
-function buildMarkerIcon(label, type, crowdLevel) {
+function buildMarkerIcon(type, crowdLevel, selected = false, id = null) {
   const color = markerColor(type, crowdLevel)
-  const labelHtml = label
-    ? `<span style="
-        display:block;
-        margin-top:4px;
-        font-size:11px;
-        font-weight:600;
-        background:#fff;
-        border-radius:6px;
-        padding:2px 6px;
-        box-shadow:0 1px 4px rgba(0,0,0,.15);
-        white-space:nowrap;
-        color:#333;
-        text-align:center;
-      ">${label}</span>`
+  const size = selected ? 22 : 14
+  const border = selected ? '3px solid #fff' : '2px solid #fff'
+  const shadow = selected
+    ? '0 3px 10px rgba(0,0,0,.35), 0 0 0 4px rgba(254,156,0,0.3)'
+    : '0 2px 6px rgba(0,0,0,.25)'
+  const onclickAttr = id != null
+    ? `onclick="window.__naverPinClick && window.__naverPinClick(${JSON.stringify(id)})" `
     : ''
   return {
     content: `
-      <div style="
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        cursor:pointer;
-      ">
+      <div
+        ${onclickAttr}
+        style="
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:center;
+          cursor:pointer;
+          width:30px;
+          height:30px;
+        "
+      >
         <div style="
-          width:16px;height:16px;
+          width:${size}px;height:${size}px;
           border-radius:50%;
-          background:${color};
-          border:2px solid #fff;
-          box-shadow:0 2px 6px rgba(0,0,0,.25);
+          background:${selected ? '#FF6B00' : color};
+          border:${border};
+          box-shadow:${shadow};
+          pointer-events:none;
         "></div>
-        ${labelHtml}
       </div>`,
-    anchor: new window.naver.maps.Point(8, 16),
+    anchor: new window.naver.maps.Point(15, 15),
   }
 }
 
 // ── 마커 동기화 ────────────────────────────────────────────────
 function syncMarkers(markers) {
-  naverMarkers.forEach(m => m.setMap(null))
+  naverMarkers.forEach(({ nm }) => nm.setMap(null))
   naverMarkers = []
 
   markers.forEach(marker => {
     if (marker.lat == null || marker.lng == null) return
+    const isSelected = mapStore.selectedMarkerId === marker.id
     const nm = new window.naver.maps.Marker({
       position: new window.naver.maps.LatLng(marker.lat, marker.lng),
       map: mapInstance,
-      icon: buildMarkerIcon(marker.label, marker.type, marker.crowdLevel),
+      icon: buildMarkerIcon(marker.type, marker.crowdLevel, isSelected, marker.id),
+      zIndex: isSelected ? 100 : 10,
     })
-    naverMarkers.push(nm)
+    naverMarkers.push({ nm, marker })
+  })
+}
+
+// ── 선택 마커만 아이콘 갱신 ────────────────────────────────────
+function syncSelectedMarker(selectedId) {
+  naverMarkers.forEach(({ nm, marker }) => {
+    const isSelected = marker.id === selectedId
+    nm.setIcon(buildMarkerIcon(marker.type, marker.crowdLevel, isSelected, marker.id))
+    nm.setZIndex(isSelected ? 100 : 10)
   })
 }
 
@@ -163,6 +174,11 @@ function syncPolyline(points) {
 
 // ── 지도 초기화 ────────────────────────────────────────────────
 onMounted(async () => {
+  // 글로벌 핀 클릭 핸들러 등록 (마커 content HTML의 onclick에서 호출)
+  window.__naverPinClick = (id) => {
+    mapStore.selectMarker(id)
+  }
+
   window.navermap_authFailure = () => {
     console.error('[NaverMap] 인증 실패: ncpKeyId를 확인하세요.')
   }
@@ -185,10 +201,11 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  naverMarkers.forEach(m => m.setMap(null))
+  naverMarkers.forEach(({ nm }) => nm.setMap(null))
   if (naverPolyline) naverPolyline.setMap(null)
   if (currentLocationMarker) currentLocationMarker.setMap(null)
   mapInstance = null
+  delete window.__naverPinClick
   delete window.navermap_authFailure
 })
 
@@ -197,6 +214,11 @@ watch(
   () => mapStore.markers,
   (markers) => { if (mapInstance) syncMarkers(markers) },
   { deep: true },
+)
+
+watch(
+  () => mapStore.selectedMarkerId,
+  (id) => { if (mapInstance) syncSelectedMarker(id) },
 )
 
 watch(
@@ -223,17 +245,6 @@ watch(
   <div class="map-view">
     <div ref="mapRef" class="map-view__canvas"></div>
 
-    <div class="map-view__legend">
-      <div class="legend-item"><span class="legend-dot legend-dot--ai"></span>AI 추천 동선</div>
-      <div class="legend-item"><span class="legend-dot legend-dot--suggest"></span>추가 소재</div>
-      <div class="legend-item"><span class="legend-dot legend-dot--facility"></span>동반 편의시설</div>
-      <div class="legend-item crowd-row">
-        <span>혼잡도</span>
-        <span class="crowd-dot crowd-dot--low"></span><span>낮음</span>
-        <span class="crowd-dot crowd-dot--medium"></span><span>보통</span>
-        <span class="crowd-dot crowd-dot--high"></span><span>높음</span>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -249,56 +260,4 @@ watch(
   width: 100%;
   height: 100%;
 }
-
-.map-view__legend {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 10px;
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 11px;
-  color: #444;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(4px);
-  z-index: 10;
-  pointer-events: none;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.crowd-row {
-  gap: 4px;
-}
-
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.legend-dot--ai       { background: #FE9C00; }
-.legend-dot--suggest  { background: #22c55e; }
-.legend-dot--facility { background: #3b82f6; }
-
-.crowd-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.crowd-dot--low    { background: #22c55e; }
-.crowd-dot--medium { background: #f97316; }
-.crowd-dot--high   { background: #ef4444; }
 </style>
