@@ -1,16 +1,22 @@
 <script setup>
 import { useRoute, useRouter } from 'vue-router'
-import { IsIcon } from '@ratoufa/iconsax-vue'
+import {
+  Bookmark,
+  CircleUserRound,
+  Home,
+  Map,
+  Sparkles,
+} from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
 
 const navItems = [
-  { path: '/discover', icon: 'home', label: '홈' },
-  { path: '/map', icon: 'map', label: '지도' },
-  { path: '/ai', icon: 'magic-star', label: 'AI 코스', fab: true },
-  { path: '/saved', icon: 'bookmark', label: '저장함' },
-  { path: '/profile', icon: 'profile-circle', label: '마이' },
+  { path: '/discover', icon: Home, label: '홈' },
+  { path: '/map', icon: Map, label: '지도' },
+  { path: '/ai', icon: Sparkles, label: 'AI 코스', fab: true },
+  { path: '/saved', icon: Bookmark, label: '저장함' },
+  { path: '/profile', icon: CircleUserRound, label: '마이' },
 ]
 
 function navigate(path) {
@@ -29,11 +35,11 @@ function navigate(path) {
       :aria-label="item.label"
     >
       <span class="bottom-nav__icon">
-        <IsIcon
-          :name="item.icon"
+        <component
+          :is="item.icon"
           class="bottom-nav__icon-svg"
-          :variant="item.fab || route.path === item.path ? 'bulk' : 'twotone'"
           :size="22"
+          :stroke-width="2.2"
         />
       </span>
       <span class="bottom-nav__label">{{ item.label }}</span>
