@@ -1,15 +1,17 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   Bell,
   ChevronLeft,
   ChevronRight,
   Heart,
+  MapPin,
 } from 'lucide-vue-next'
 import { IsIcon } from '@ratoufa/iconsax-vue'
 import AIInputSheet from '@/components/ai/AIInputSheet.vue'
 import { useSavedStore } from '@/stores/useSavedStore'
+import { fetchAttractions } from '@/services/attractionService'
 import earthImage from '../../asset/earth.png'
 import airplaneImage from '../../asset/airplane.png'
 
@@ -37,44 +39,48 @@ const realtimeHotPlaces = [
 ]
 
 const categories = [
-  { id: 'food', icon: 'cup', color: '#f97316', label: '맛집' },
-  { id: 'cafe', icon: 'coffee', color: '#c97000', label: '카페' },
-  { id: 'nature', icon: 'tree', color: '#16a34a', label: '자연/힐링' },
-  { id: 'culture', icon: 'courthouse', color: '#a16207', label: '전통문화' },
-  { id: 'travel', icon: 'airplane', color: '#2563eb', label: '여행' },
-  { id: 'shop', icon: 'shop', color: '#0891b2', label: '쇼핑' },
+  { id: '추천코스',      icon: 'routing',        color: '#fe9c00', label: '추천코스' },
+  { id: '음식',         icon: 'cup',             color: '#f97316', label: '음식' },
+  { id: '체험관광',      icon: 'people',          color: '#8b5cf6', label: '체험관광' },
+  { id: '숙박',         icon: 'home',            color: '#0891b2', label: '숙박' },
+  { id: '자연관광',      icon: 'tree',            color: '#16a34a', label: '자연관광' },
+  { id: '쇼핑',         icon: 'shop',            color: '#ec4899', label: '쇼핑' },
+  { id: '문화관광',      icon: 'courthouse',      color: '#a16207', label: '문화관광' },
+  { id: '축제/공연/행사', icon: 'music',           color: '#e11d48', label: '축제/행사' },
+  { id: '레저스포츠',    icon: 'activity',        color: '#2563eb', label: '레저스포츠' },
+  { id: '역사관광',      icon: 'building',        color: '#78716c', label: '역사관광' },
 ]
 
 const densityModes = [
-  { id: 'main100', text: '유명 관광지 완전 위주' },
-  { id: 'main70', text: '관광지 중심, 로컬 가미' },
-  { id: 'balanced', text: '관광지 & 로컬 균형' },
-  { id: 'local70', text: '로컬 핀 중심, 관광지 가미' },
-  { id: 'local100', text: '완전 로컬 핀 위주' },
+  { id: 'local0',      text: '유명 관광지 완전 위주', scoreMin: 0,    scoreMax: 0 },
+  { id: 'local1-30',   text: '관광지 중심, 로컬 가미', scoreMin: 0.01, scoreMax: 0.30 },
+  { id: 'local31-50',  text: '관광지 & 로컬 균형',    scoreMin: 0.31, scoreMax: 0.50 },
+  { id: 'local51-70',  text: '로컬 핀 중심, 관광지 가미', scoreMin: 0.51, scoreMax: 0.70 },
+  { id: 'local71-100', text: '완전 로컬 핀 위주',      scoreMin: 0.71, scoreMax: 1.0 },
 ]
 
 const densityCourseMap = {
-  main100: [
+  'local0': [
     { id: 'm1', title: '서울 핵심 랜드마크 1일', route: '경복궁 → 북촌 → 명동 → 남산타워', tags: ['랜드마크', '사진', '첫 서울'] },
     { id: 'm2', title: '궁궐·한강 클래식 코스', route: '창덕궁 → 인사동 → 광화문 → 여의도 한강', tags: ['전통', '도심', '야경'] },
     { id: 'm3', title: '서울 하이라이트 2일', route: 'DDP → 청계천 → 홍대 → 잠실 롯데월드타워', tags: ['핫플', '쇼핑', '전망'] },
   ],
-  main70: [
+  'local1-30': [
     { id: 'g1', title: '관광지+로컬 골목 혼합 1일', route: '경복궁 → 통인시장 → 서촌 카페거리', tags: ['관광', '로컬', '미식'] },
     { id: 'g2', title: '한강 감성 데이', route: '남산 → 망원한강공원 → 망원시장', tags: ['산책', '시장', '감성'] },
     { id: 'g3', title: '도심+동네 탐방', route: '명동 → 을지로 골목 → 충무로', tags: ['도심', '카페', '로컬바'] },
   ],
-  balanced: [
+  'local31-50': [
     { id: 'b1', title: '서울 밸런스 베스트', route: '북촌 → 익선동 → 성수 팝업', tags: ['균형', '핫플', '로컬'] },
     { id: 'b2', title: '문화·로컬 믹스 코스', route: '국립중앙박물관 → 용산 → 한남', tags: ['문화', '트렌디', '미식'] },
     { id: 'b3', title: '낮밤 완성 코스', route: '인사동 → 을지로 → 한강 야경', tags: ['전통', '힙지로', '야경'] },
   ],
-  local70: [
+  'local51-70': [
     { id: 'l1', title: '동네 바이브 투어', route: '망원 → 연남 → 연희동', tags: ['동네', '카페', '산책'] },
     { id: 'l2', title: '로컬 마켓 데이', route: '경동시장 → 청량리 → 회기', tags: ['시장', '현지식', '가성비'] },
     { id: 'l3', title: '서울 골목 깊게보기', route: '서촌 골목 → 부암동 → 평창동', tags: ['골목', '조용함', '뷰'] },
   ],
-  local100: [
+  'local71-100': [
     { id: 'p1', title: '찐로컬 하루 코스', route: '응암 → 불광천 → 연신내', tags: ['찐로컬', '산책', '먹거리'] },
     { id: 'p2', title: '서울 외곽 감성 루트', route: '우이동 → 수유 → 미아', tags: ['로컬', '힐링', '저밀도'] },
     { id: 'p3', title: '로컬 라이프 체험', route: '장위동 → 석계 → 월계', tags: ['생활권', '숨은맛집', '느긋함'] },
@@ -147,8 +153,82 @@ watch(courseDensityIndex, () => {
   courseTrackRef.value?.scrollTo({ left: 0, behavior: 'auto' })
 })
 
+const attractions = ref([])
+const attractionsLoading = ref(false)
+const attractionsError = ref(null)
+
+onMounted(async () => {
+  attractionsLoading.value = true
+  try {
+    attractions.value = await fetchAttractions()
+  } catch (e) {
+    attractionsError.value = e.message
+  } finally {
+    attractionsLoading.value = false
+  }
+})
+
+const filteredAttractions = computed(() => {
+  const mode = densityModes[courseDensityIndex.value]
+  let list = attractions.value
+
+  if (mode.id === 'local0') {
+    list = list.filter((a) => Number(a.score) === 0)
+  } else {
+    list = list.filter((a) => {
+      const s = Number(a.score)
+      return s >= mode.scoreMin && s <= mode.scoreMax
+    })
+  }
+
+  if (activeCategory.value) {
+    list = list.filter((a) => a.cat1Name === activeCategory.value)
+  }
+
+  return list
+})
+
+const PAGE_SIZE = 10
+const attractionPage = ref(1)
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredAttractions.value.length / PAGE_SIZE)))
+
+const pagedAttractions = computed(() => {
+  const start = (attractionPage.value - 1) * PAGE_SIZE
+  return filteredAttractions.value.slice(start, start + PAGE_SIZE)
+})
+
+// 1 ... 4 5 6 ... 12 형태로 표시할 페이지 번호 배열 (숫자 or '...')
+const pageItems = computed(() => {
+  const total = totalPages.value
+  const cur = attractionPage.value
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+
+  const items = []
+  const addPage = (p) => items.push(p)
+  const addDot = () => { if (items[items.length - 1] !== '...') items.push('...') }
+
+  addPage(1)
+  if (cur > 3) addDot()
+  for (let p = Math.max(2, cur - 1); p <= Math.min(total - 1, cur + 1); p++) addPage(p)
+  if (cur < total - 2) addDot()
+  addPage(total)
+
+  return items
+})
+
 function selectCategory(id) {
   activeCategory.value = activeCategory.value === id ? null : id
+  attractionPage.value = 1
+}
+
+// density 바꿀 때도 1페이지로 리셋
+watch(courseDensityIndex, () => {
+  attractionPage.value = 1
+})
+
+function goToAttraction(id) {
+  router.push({ name: 'attraction-detail', params: { id } })
 }
 
 function onCourseGenerated() {
@@ -230,30 +310,43 @@ watch(
       </div>
     </div>
 
+    <!-- ── Density Selector ──────────────────────────────────────────── -->
+    <div class="discover__density-bar">
+      <p class="discover__density-bar-label">여행 스타일</p>
+      <div class="discover__density-bar-control">
+        <button
+          class="discover__density-arrow"
+          :disabled="courseDensityIndex === 0"
+          aria-label="이전"
+          @click="changeCourseDensity(-1)"
+        >
+          <ChevronLeft :size="16" :stroke-width="2.5" />
+        </button>
+        <div class="discover__density-bar-track">
+          <button
+            v-for="(mode, i) in densityModes"
+            :key="mode.id"
+            class="discover__density-pip"
+            :class="{ 'discover__density-pip--active': courseDensityIndex === i }"
+            :aria-label="mode.text"
+            @click="courseDensityIndex = i"
+          />
+        </div>
+        <button
+          class="discover__density-arrow"
+          :disabled="courseDensityIndex === densityModes.length - 1"
+          aria-label="다음"
+          @click="changeCourseDensity(1)"
+        >
+          <ChevronRight :size="16" :stroke-width="2.5" />
+        </button>
+      </div>
+      <p class="discover__density-bar-text">{{ densityModes[courseDensityIndex].text }}</p>
+    </div>
+
     <!-- ── Hot Areas ──────────────────────────────────────────────────── -->
     <section class="discover__section">
-      <div class="discover__section-row">
-        <h3 class="discover__section-title">추천 여행 코스</h3>
-        <div class="discover__course-density">
-          <button
-            class="discover__density-btn"
-            :disabled="courseDensityIndex === 0"
-            aria-label="이전 농도 코스"
-            @click="changeCourseDensity(-1)"
-          >
-            <ChevronLeft :size="14" :stroke-width="2.4" aria-hidden="true" />
-          </button>
-          <span class="discover__density-label">{{ densityModes[courseDensityIndex].text }}</span>
-          <button
-            class="discover__density-btn"
-            :disabled="courseDensityIndex === densityModes.length - 1"
-            aria-label="다음 농도 코스"
-            @click="changeCourseDensity(1)"
-          >
-            <ChevronRight :size="14" :stroke-width="2.4" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
+      <h3 class="discover__section-title">추천 여행 코스</h3>
       <div
         ref="courseTrackRef"
         class="discover__course-carousel"
@@ -340,6 +433,91 @@ watch(
           />
           <span class="cat-btn__label">{{ cat.label }}</span>
         </button>
+      </div>
+
+      <!-- Attractions list -->
+      <div class="discover__attractions">
+        <!-- Loading -->
+        <div v-if="attractionsLoading" class="discover__attractions-loading">
+          <div class="discover__attractions-spinner"></div>
+          <span>관광지 목록 불러오는 중...</span>
+        </div>
+
+        <!-- Error -->
+        <p v-else-if="attractionsError" class="discover__attractions-error">
+          {{ attractionsError }}
+        </p>
+
+        <!-- Empty -->
+        <p v-else-if="filteredAttractions.length === 0" class="discover__attractions-empty">
+          해당 카테고리의 관광지가 없습니다.
+        </p>
+
+        <template v-else>
+          <!-- Cards -->
+          <button
+            v-for="attraction in pagedAttractions"
+            :key="attraction.id"
+            class="attraction-card"
+            @click="goToAttraction(attraction.id)"
+          >
+            <div class="attraction-card__thumb-wrap">
+              <img
+                v-if="attraction.imageUrl || attraction.image_url || attraction.thumbnail"
+                class="attraction-card__thumb"
+                :src="attraction.imageUrl || attraction.image_url || attraction.thumbnail"
+                :alt="attraction.name"
+              />
+              <div v-else class="attraction-card__thumb-placeholder"></div>
+            </div>
+            <div class="attraction-card__info">
+              <p class="attraction-card__name">{{ attraction.name }}</p>
+              <p v-if="attraction.address" class="attraction-card__address">
+                <MapPin :size="11" :stroke-width="2" class="attraction-card__pin" />
+                {{ attraction.address }}
+              </p>
+              <div class="attraction-card__meta">
+                <span v-if="attraction.cat1Name" class="attraction-card__cat">
+                  {{ attraction.cat1Name }}
+                </span>
+              </div>
+            </div>
+            <ChevronRight :size="16" :stroke-width="2.2" class="attraction-card__arrow" />
+          </button>
+
+          <!-- Pagination -->
+          <div v-if="totalPages > 1" class="discover__pagination">
+            <button
+              class="discover__pg-arrow"
+              :disabled="attractionPage === 1"
+              aria-label="이전"
+              @click="attractionPage--"
+            >
+              <ChevronLeft :size="14" :stroke-width="2.5" />
+            </button>
+
+            <template v-for="item in pageItems" :key="item">
+              <span v-if="item === '...'" class="discover__pg-ellipsis">…</span>
+              <button
+                v-else
+                class="discover__pg-num"
+                :class="{ 'discover__pg-num--active': attractionPage === item }"
+                @click="attractionPage = item"
+              >
+                {{ item }}
+              </button>
+            </template>
+
+            <button
+              class="discover__pg-arrow"
+              :disabled="attractionPage === totalPages"
+              aria-label="다음"
+              @click="attractionPage++"
+            >
+              <ChevronRight :size="14" :stroke-width="2.5" />
+            </button>
+          </div>
+        </template>
       </div>
     </section>
 
@@ -671,56 +849,114 @@ watch(
   margin: 0 0 14px;
 }
 
-.discover__course-density {
+/* ─── Density bar (standalone) ───────────────────────────────────────────── */
+.discover__density-bar {
+  background: linear-gradient(110deg, #ffb23f 0%, #fe9c00 48%, #ff8f00 100%);
+  padding: 14px 20px 16px;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px;
-  border-radius: 999px;
-  background: #fff8ec;
-  border: 1px solid #f7e1bf;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  flex-direction: column;
+  gap: 10px;
 }
 
-.discover__density-btn {
-  width: 26px;
-  height: 26px;
-  border: 1px solid #f2d7ad;
+.discover__density-bar-label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.discover__density-bar-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.discover__density-arrow {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  background: #fff;
-  color: #b77410;
-  cursor: pointer;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
-  transition: transform 0.12s ease, background 0.15s ease, color 0.15s ease;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  backdrop-filter: blur(4px);
 }
 
-.discover__density-btn:not(:disabled):hover {
-  background: #fff3df;
-  color: #c97000;
+.discover__density-arrow:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
-.discover__density-btn:not(:disabled):active {
-  transform: scale(0.94);
+.discover__density-arrow:not(:disabled):active {
+  transform: scale(0.92);
 }
 
-.discover__density-btn:disabled {
-  opacity: 0.38;
+.discover__density-arrow:disabled {
+  opacity: 0.3;
   cursor: not-allowed;
-  box-shadow: none;
 }
 
-.discover__density-label {
-  font-size: 10px;
-  color: #a36b18;
+.discover__density-bar-track {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  position: relative;
+  padding: 8px 0;
+}
+
+.discover__density-bar-track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 3px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+}
+
+.discover__density-pip {
+  position: relative;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+  flex-shrink: 0;
+}
+
+.discover__density-pip:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.discover__density-pip--active {
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.discover__density-bar-text {
+  margin: 0;
+  font-size: 15px;
   font-weight: 800;
-  white-space: nowrap;
-  max-width: 122px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  padding: 0 2px;
+  color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  letter-spacing: -0.2px;
 }
 
 .discover__course-carousel {
@@ -959,6 +1195,218 @@ watch(
 }
 
 .cat-btn--active .cat-btn__label { color: #c97000; }
+
+/* ─── Attractions list ───────────────────────────────────────────────────── */
+.discover__attractions {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.discover__attractions-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 0;
+  color: #888;
+  font-size: 13px;
+}
+
+.discover__attractions-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #ffe3ba;
+  border-top-color: #fe9c00;
+  border-radius: 50%;
+  animation: discover-spin 0.8s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes discover-spin {
+  to { transform: rotate(360deg); }
+}
+
+.discover__attractions-error,
+.discover__attractions-empty {
+  text-align: center;
+  padding: 24px 0;
+  font-size: 13px;
+  color: #aaa;
+}
+
+.discover__attractions-error {
+  color: #ef4444;
+}
+
+.attraction-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fafaf8;
+  border: 1.5px solid #efefed;
+  border-radius: 14px;
+  padding: 12px;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+}
+
+.attraction-card:active {
+  transform: scale(0.98);
+  background: #fff8ec;
+  border-color: #ffe3ba;
+}
+
+.attraction-card__thumb-wrap {
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #efefed;
+}
+
+.attraction-card__thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.attraction-card__thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #e8e6e0 0%, #d4d0c8 100%);
+}
+
+.attraction-card__info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.attraction-card__name {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attraction-card__address {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  color: #888;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attraction-card__pin {
+  color: #fe9c00;
+  flex-shrink: 0;
+}
+
+.attraction-card__meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.attraction-card__cat {
+  font-size: 10px;
+  font-weight: 700;
+  color: #a36b18;
+  background: #fff3df;
+  border: 1px solid #ffe3ba;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.attraction-card__arrow {
+  color: #ccc;
+  flex-shrink: 0;
+}
+
+/* ─── Pagination ─────────────────────────────────────────────────────────── */
+.discover__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 0 4px;
+}
+
+.discover__pg-arrow {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid #e8e6e0;
+  background: #fafaf8;
+  color: #777;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.discover__pg-arrow:not(:disabled):hover {
+  border-color: #ffe3ba;
+  background: #fff8ec;
+  color: #c97000;
+}
+
+.discover__pg-arrow:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.discover__pg-num {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1.5px solid #e8e6e0;
+  background: #fafaf8;
+  color: #555;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 6px;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.discover__pg-num:hover {
+  border-color: #ffe3ba;
+  background: #fff8ec;
+  color: #c97000;
+}
+
+.discover__pg-num--active {
+  border-color: #fe9c00;
+  background: #fe9c00;
+  color: #fff;
+  font-weight: 800;
+}
+
+.discover__pg-ellipsis {
+  width: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: #bbb;
+  user-select: none;
+  line-height: 34px;
+}
 
 /* ─── Bottom Nav ─────────────────────────────────────────────────────────── */
 .discover__nav {
