@@ -188,9 +188,44 @@ const filteredAttractions = computed(() => {
   return list
 })
 
+const PAGE_SIZE = 10
+const attractionPage = ref(1)
+
+const totalPages = computed(() => Math.max(1, Math.ceil(filteredAttractions.value.length / PAGE_SIZE)))
+
+const pagedAttractions = computed(() => {
+  const start = (attractionPage.value - 1) * PAGE_SIZE
+  return filteredAttractions.value.slice(start, start + PAGE_SIZE)
+})
+
+// 1 ... 4 5 6 ... 12 형태로 표시할 페이지 번호 배열 (숫자 or '...')
+const pageItems = computed(() => {
+  const total = totalPages.value
+  const cur = attractionPage.value
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1)
+
+  const items = []
+  const addPage = (p) => items.push(p)
+  const addDot = () => { if (items[items.length - 1] !== '...') items.push('...') }
+
+  addPage(1)
+  if (cur > 3) addDot()
+  for (let p = Math.max(2, cur - 1); p <= Math.min(total - 1, cur + 1); p++) addPage(p)
+  if (cur < total - 2) addDot()
+  addPage(total)
+
+  return items
+})
+
 function selectCategory(id) {
   activeCategory.value = activeCategory.value === id ? null : id
+  attractionPage.value = 1
 }
+
+// density 바꿀 때도 1페이지로 리셋
+watch(courseDensityIndex, () => {
+  attractionPage.value = 1
+})
 
 function goToAttraction(id) {
   router.push({ name: 'attraction-detail', params: { id } })
@@ -418,37 +453,71 @@ watch(
           해당 카테고리의 관광지가 없습니다.
         </p>
 
-        <!-- Cards -->
-        <button
-          v-else
-          v-for="attraction in filteredAttractions"
-          :key="attraction.id"
-          class="attraction-card"
-          @click="goToAttraction(attraction.id)"
-        >
-          <div class="attraction-card__thumb-wrap">
-            <img
-              v-if="attraction.imageUrl || attraction.image_url || attraction.thumbnail"
-              class="attraction-card__thumb"
-              :src="attraction.imageUrl || attraction.image_url || attraction.thumbnail"
-              :alt="attraction.name"
-            />
-            <div v-else class="attraction-card__thumb-placeholder"></div>
-          </div>
-          <div class="attraction-card__info">
-            <p class="attraction-card__name">{{ attraction.name }}</p>
-            <p v-if="attraction.address" class="attraction-card__address">
-              <MapPin :size="11" :stroke-width="2" class="attraction-card__pin" />
-              {{ attraction.address }}
-            </p>
-            <div class="attraction-card__meta">
-              <span v-if="attraction.cat1Name" class="attraction-card__cat">
-                {{ attraction.cat1Name }}
-              </span>
+        <template v-else>
+          <!-- Cards -->
+          <button
+            v-for="attraction in pagedAttractions"
+            :key="attraction.id"
+            class="attraction-card"
+            @click="goToAttraction(attraction.id)"
+          >
+            <div class="attraction-card__thumb-wrap">
+              <img
+                v-if="attraction.imageUrl || attraction.image_url || attraction.thumbnail"
+                class="attraction-card__thumb"
+                :src="attraction.imageUrl || attraction.image_url || attraction.thumbnail"
+                :alt="attraction.name"
+              />
+              <div v-else class="attraction-card__thumb-placeholder"></div>
             </div>
+            <div class="attraction-card__info">
+              <p class="attraction-card__name">{{ attraction.name }}</p>
+              <p v-if="attraction.address" class="attraction-card__address">
+                <MapPin :size="11" :stroke-width="2" class="attraction-card__pin" />
+                {{ attraction.address }}
+              </p>
+              <div class="attraction-card__meta">
+                <span v-if="attraction.cat1Name" class="attraction-card__cat">
+                  {{ attraction.cat1Name }}
+                </span>
+              </div>
+            </div>
+            <ChevronRight :size="16" :stroke-width="2.2" class="attraction-card__arrow" />
+          </button>
+
+          <!-- Pagination -->
+          <div v-if="totalPages > 1" class="discover__pagination">
+            <button
+              class="discover__pg-arrow"
+              :disabled="attractionPage === 1"
+              aria-label="이전"
+              @click="attractionPage--"
+            >
+              <ChevronLeft :size="14" :stroke-width="2.5" />
+            </button>
+
+            <template v-for="item in pageItems" :key="item">
+              <span v-if="item === '...'" class="discover__pg-ellipsis">…</span>
+              <button
+                v-else
+                class="discover__pg-num"
+                :class="{ 'discover__pg-num--active': attractionPage === item }"
+                @click="attractionPage = item"
+              >
+                {{ item }}
+              </button>
+            </template>
+
+            <button
+              class="discover__pg-arrow"
+              :disabled="attractionPage === totalPages"
+              aria-label="다음"
+              @click="attractionPage++"
+            >
+              <ChevronRight :size="14" :stroke-width="2.5" />
+            </button>
           </div>
-          <ChevronRight :size="16" :stroke-width="2.2" class="attraction-card__arrow" />
-        </button>
+        </template>
       </div>
     </section>
 
@@ -1266,6 +1335,77 @@ watch(
 .attraction-card__arrow {
   color: #ccc;
   flex-shrink: 0;
+}
+
+/* ─── Pagination ─────────────────────────────────────────────────────────── */
+.discover__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 0 4px;
+}
+
+.discover__pg-arrow {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: 1.5px solid #e8e6e0;
+  background: #fafaf8;
+  color: #777;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.discover__pg-arrow:not(:disabled):hover {
+  border-color: #ffe3ba;
+  background: #fff8ec;
+  color: #c97000;
+}
+
+.discover__pg-arrow:disabled {
+  opacity: 0.28;
+  cursor: not-allowed;
+}
+
+.discover__pg-num {
+  min-width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1.5px solid #e8e6e0;
+  background: #fafaf8;
+  color: #555;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0 6px;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.discover__pg-num:hover {
+  border-color: #ffe3ba;
+  background: #fff8ec;
+  color: #c97000;
+}
+
+.discover__pg-num--active {
+  border-color: #fe9c00;
+  background: #fe9c00;
+  color: #fff;
+  font-weight: 800;
+}
+
+.discover__pg-ellipsis {
+  width: 24px;
+  text-align: center;
+  font-size: 13px;
+  color: #bbb;
+  user-select: none;
+  line-height: 34px;
 }
 
 /* ─── Bottom Nav ─────────────────────────────────────────────────────────── */
