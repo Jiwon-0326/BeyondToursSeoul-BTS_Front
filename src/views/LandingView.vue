@@ -6,10 +6,12 @@ import { useAuthStore } from '@/stores/useAuthStore'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const authMode = ref('login')
 const selectedLang = ref('Language / 언어')
 const showLangDrop = ref(false)
 const email = ref('')
 const password = ref('')
+const confirmPassword = ref('')
 const loginError = ref('')
 
 const languages = [
@@ -35,11 +37,30 @@ function go() {
 async function loginWithEmail() {
   loginError.value = ''
   try {
-    await authStore.login(email.value.trim(), password.value)
+    if (authMode.value === 'signup') {
+      if (!email.value.trim() || !password.value) {
+        throw new Error('이메일과 비밀번호를 입력해 주세요.')
+      }
+      if (password.value.length < 8) {
+        throw new Error('비밀번호는 8자 이상으로 입력해 주세요.')
+      }
+      if (password.value !== confirmPassword.value) {
+        throw new Error('비밀번호 확인이 일치하지 않습니다.')
+      }
+      const result = await authStore.signup(email.value.trim(), password.value)
+      // 가입 응답이 토큰이 없으면 로그인 모드로 전환 안내
+      if (!result?.accessToken) {
+        authMode.value = 'login'
+        loginError.value = '회원가입 완료! 로그인해 주세요.'
+        return
+      }
+    } else {
+      await authStore.login(email.value.trim(), password.value)
+    }
     await authStore.loadMe().catch(() => null)
     router.push('/discover')
   } catch (e) {
-    loginError.value = e.message || '로그인에 실패했습니다.'
+    loginError.value = e.message || '인증 처리에 실패했습니다.'
   }
 }
 </script>
@@ -157,6 +178,25 @@ async function loginWithEmail() {
           <span class="landing__or-line"></span>
         </div>
 
+        <div class="landing__auth-mode">
+          <button
+            class="landing__auth-tab"
+            :class="{ 'landing__auth-tab--active': authMode === 'login' }"
+            type="button"
+            @click="authMode = 'login'"
+          >
+            로그인
+          </button>
+          <button
+            class="landing__auth-tab"
+            :class="{ 'landing__auth-tab--active': authMode === 'signup' }"
+            type="button"
+            @click="authMode = 'signup'"
+          >
+            회원가입
+          </button>
+        </div>
+
         <div class="landing__email-box">
           <input
             v-model="email"
@@ -172,8 +212,20 @@ async function loginWithEmail() {
             placeholder="Password"
             autocomplete="current-password"
           />
+          <input
+            v-if="authMode === 'signup'"
+            v-model="confirmPassword"
+            class="landing__input"
+            type="password"
+            placeholder="Password 확인"
+            autocomplete="new-password"
+          />
           <button class="landing__btn landing__btn--email" @click="loginWithEmail" :disabled="authStore.isLoading">
-            {{ authStore.isLoading ? '로그인 중...' : '로그인' }}
+            {{
+              authStore.isLoading
+                ? (authMode === 'signup' ? '가입 중...' : '로그인 중...')
+                : (authMode === 'signup' ? '회원가입' : '로그인')
+            }}
           </button>
           <p v-if="loginError" class="landing__error">{{ loginError }}</p>
         </div>
@@ -416,6 +468,29 @@ async function loginWithEmail() {
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.landing__auth-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.landing__auth-tab {
+  padding: 9px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.landing__auth-tab--active {
+  border-color: rgba(254, 156, 0, 0.9);
+  background: rgba(254, 156, 0, 0.2);
+  color: #ffd8a1;
 }
 
 .landing__input {

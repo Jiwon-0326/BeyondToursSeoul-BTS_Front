@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import { fetchMe, loginWithEmail } from '@/services/authService'
+import { fetchMe, loginWithEmail, signupWithEmail } from '@/services/authService'
 
 const STORAGE_KEY = 'bts:auth:v1'
 
@@ -87,6 +87,22 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function signup(email, password) {
+    isLoading.value = true
+    error.value = ''
+    try {
+      const data = await signupWithEmail({ email, password })
+      // 백엔드가 가입 직후 토큰을 반환하면 바로 세션 저장
+      if (data?.accessToken) setSession(data)
+      return data
+    } catch (e) {
+      error.value = e.message || '회원가입 실패'
+      throw e
+    } finally {
+      isLoading.value = false
+    }
+  }
+
   async function loadMe() {
     if (!accessToken.value) return null
     const me = await fetchMe(accessToken.value)
@@ -108,6 +124,7 @@ export const useAuthStore = defineStore('auth', () => {
     setSession,
     clearSession,
     login,
+    signup,
     loadMe,
   }
 })

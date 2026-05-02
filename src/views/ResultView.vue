@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router'
 import { useTripStore } from '@/stores/useTripStore'
 import MapView from '@/components/map/MapView.vue'
 import ItineraryTimeline from '@/components/itinerary/ItineraryTimeline.vue'
+import AiChatPanel from '@/components/ai/AiChatPanel.vue'
 
 const router = useRouter()
 const tripStore = useTripStore()
@@ -34,6 +35,7 @@ function generateAnother() {
 
     <div class="result__itinerary-section">
       <ItineraryTimeline />
+      <AiChatPanel />
     </div>
 
     <div class="result__actions">
