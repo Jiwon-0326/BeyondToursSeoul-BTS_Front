@@ -80,9 +80,10 @@ function syncCurrentLocation(loc) {
 
 // ── 마커 색상 헬퍼 ─────────────────────────────────────────────
 function markerColor(type, crowdLevel) {
-  if (type === 'start') return '#22c55e'
-  if (type === 'end') return '#ef4444'
-  if (crowdLevel === 'high') return '#ef4444'
+  if (type === 'start')  return '#22c55e'
+  if (type === 'end')    return '#ef4444'
+  if (type === 'locker') return '#0d9488'
+  if (crowdLevel === 'high')   return '#ef4444'
   if (crowdLevel === 'medium') return '#f97316'
   return '#FE9C00'
 }

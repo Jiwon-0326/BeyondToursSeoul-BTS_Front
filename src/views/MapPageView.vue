@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { IsIcon } from '@ratoufa/iconsax-vue'
 import { useMapStore } from '@/stores/useMapStore'
-import { fetchAttractions } from '@/services/attractionService'
+import { fetchAttractions, fetchLockers } from '@/services/attractionService'
 import MapView from '@/components/map/MapView.vue'
 import AttractionDetailView from '@/views/AttractionDetailView.vue'
 
@@ -51,14 +51,26 @@ function selectCategory(id) {
 
 // ── Attractions ───────────────────────────────────────────────────────
 const attractions = ref([])
+const lockers = ref([])
 const attractionsLoading = ref(false)
 
 onMounted(async () => {
   attractionsLoading.value = true
   try {
-    attractions.value = await fetchAttractions()
-  } catch (e) {
-    console.error('[MapPage] 관광지 로드 실패:', e)
+    const [attrData, lockerData] = await Promise.allSettled([
+      fetchAttractions(),
+      fetchLockers(),
+    ])
+    if (attrData.status === 'fulfilled') {
+      attractions.value = attrData.value
+    } else {
+      console.error('[MapPage] 관광지 로드 실패:', attrData.reason)
+    }
+    if (lockerData.status === 'fulfilled') {
+      lockers.value = lockerData.value
+    } else {
+      console.error('[MapPage] 물품보관소 로드 실패:', lockerData.reason)
+    }
   } finally {
     attractionsLoading.value = false
   }
@@ -85,20 +97,34 @@ const filteredAttractions = computed(() => {
   return list
 })
 
-// Map store에 마커 동기화 (id 포함)
+// 관광지 + 물품보관소 마커 통합 computed
+const allMarkers = computed(() => {
+  const attrMarkers = filteredAttractions.value
+    .filter((a) => a.lat != null && a.lng != null)
+    .map((a) => ({
+      id: a.id,
+      lat: Number(a.lat),
+      lng: Number(a.lng),
+    }))
+
+  const lockerMarkers = lockers.value
+    .filter((l) => l.latitude != null && l.longitude != null)
+    .map((l) => ({
+      id: `locker-${l.id}`,
+      lat: Number(l.latitude),
+      lng: Number(l.longitude),
+      type: 'locker',
+    }))
+
+  return [...attrMarkers, ...lockerMarkers]
+})
+
+// Map store에 마커 동기화
 watch(
-  filteredAttractions,
-  (list) => {
+  allMarkers,
+  (markers) => {
     mapStore.selectMarker(null)
-    mapStore.setMarkers(
-      list
-        .filter((a) => a.lat != null && a.lng != null)
-        .map((a) => ({
-          id: a.id,
-          lat: Number(a.lat),
-          lng: Number(a.lng),
-        })),
-    )
+    mapStore.setMarkers(markers)
   },
   { immediate: true },
 )
@@ -161,7 +187,7 @@ function fetchCurrentLocation() {
     <header class="map-page__header">
       <h1 class="map-page__title">서울 지도</h1>
       <span v-if="attractionsLoading" class="map-page__loading-badge">로드 중…</span>
-      <span v-else class="map-page__count-badge">{{ filteredAttractions.length }}개 핀</span>
+      <span v-else class="map-page__count-badge">{{ allMarkers.length }}개 핀</span>
     </header>
 
     <!-- ── Density Selector ────────────────────────────────────── -->
@@ -239,6 +265,18 @@ function fetchCurrentLocation() {
           <line x1="19" y1="12" x2="22" y2="12"/>
         </svg>
       </button>
+
+      <!-- 핀 범례 -->
+      <div class="map-page__legend">
+        <div class="map-page__legend-item">
+          <span class="map-page__legend-dot" style="background:#FE9C00;"></span>
+          <span class="map-page__legend-label">관광지</span>
+        </div>
+        <div class="map-page__legend-item">
+          <span class="map-page__legend-dot" style="background:#0d9488;"></span>
+          <span class="map-page__legend-label">물품보관소</span>
+        </div>
+      </div>
 
       <!-- GPS 에러 토스트 -->
       <Transition name="toast">
@@ -507,6 +545,46 @@ function fetchCurrentLocation() {
   cursor: pointer;
   z-index: 20;
   transition: transform 0.15s, box-shadow 0.15s;
+}
+
+/* ── Legend ──────────────────────────────────────────────────────────── */
+.map-page__legend {
+  position: absolute;
+  bottom: 20px;
+  left: 16px;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 12px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.14);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  pointer-events: none;
+}
+
+.map-page__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.map-page__legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1.5px solid #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.map-page__legend-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #444;
+  white-space: nowrap;
 }
 
 .map-page__locate-btn:active {
