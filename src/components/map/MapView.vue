@@ -2,6 +2,11 @@
 import { onMounted, onUnmounted, watch, ref } from 'vue'
 import { useMapStore } from '@/stores/useMapStore'
 
+defineProps({
+  /** false면 우측 범례 숨김 (AI 채팅 시트 등 임베드용) */
+  showLegend: { type: Boolean, default: true },
+})
+
 const mapStore = useMapStore()
 const mapRef = ref(null)
 
@@ -223,7 +228,7 @@ watch(
   <div class="map-view">
     <div ref="mapRef" class="map-view__canvas"></div>
 
-    <div class="map-view__legend">
+    <div v-if="showLegend" class="map-view__legend">
       <div class="legend-item"><span class="legend-dot legend-dot--ai"></span>AI 추천 동선</div>
       <div class="legend-item"><span class="legend-dot legend-dot--suggest"></span>추가 소재</div>
       <div class="legend-item"><span class="legend-dot legend-dot--facility"></span>동반 편의시설</div>
