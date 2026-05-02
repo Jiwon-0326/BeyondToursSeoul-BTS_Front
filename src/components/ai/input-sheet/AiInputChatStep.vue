@@ -166,7 +166,7 @@ async function sendChat() {
     </header>
 
     <div class="chat-step__map">
-      <MapView :show-legend="false" />
+      <MapView />
       <div v-if="mapSyncing" class="chat-step__map-overlay" aria-hidden="true" />
     </div>
 
