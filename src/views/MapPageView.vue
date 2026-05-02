@@ -1,37 +1,113 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { IsIcon } from '@ratoufa/iconsax-vue'
 import { useMapStore } from '@/stores/useMapStore'
+import { fetchAttractions } from '@/services/attractionService'
 import MapView from '@/components/map/MapView.vue'
 
 const mapStore = useMapStore()
-const searchQuery = ref('')
 
-// GPS 상태
+// ── GPS ──────────────────────────────────────────────────────────────
 const gpsLoading = ref(false)
-const gpsError = ref('')   // 에러 메시지 (빈 문자열이면 숨김)
+const gpsError = ref('')
 
-const AREAS = [
-  { label: '성수', lat: 37.5444, lng: 127.0557 },
-  { label: '홍대', lat: 37.5563, lng: 126.9234 },
-  { label: '강남', lat: 37.4979, lng: 127.0276 },
-  { label: '명동', lat: 37.5636, lng: 126.9826 },
-  { label: '이태원', lat: 37.5345, lng: 126.9944 },
+// ── Density ──────────────────────────────────────────────────────────
+const courseDensityIndex = ref(2)
+
+const densityModes = [
+  { id: 'local0',      text: '유명 관광지 완전 위주',     scoreMin: 0,    scoreMax: 0 },
+  { id: 'local1-30',   text: '관광지 중심, 로컬 가미',    scoreMin: 0.01, scoreMax: 0.30 },
+  { id: 'local31-50',  text: '관광지 & 로컬 균형',        scoreMin: 0.31, scoreMax: 0.50 },
+  { id: 'local51-70',  text: '로컬 핀 중심, 관광지 가미', scoreMin: 0.51, scoreMax: 0.70 },
+  { id: 'local71-100', text: '완전 로컬 핀 위주',         scoreMin: 0.71, scoreMax: 1.0 },
 ]
 
-function focusArea(area) {
-  mapStore.setCenter(area.lat, area.lng)
+function changeCourseDensity(delta) {
+  const last = densityModes.length - 1
+  courseDensityIndex.value = Math.max(0, Math.min(last, courseDensityIndex.value + delta))
 }
 
-// ── GPS 위치 조회 ────────────────────────────────────────────────
+// ── Categories ───────────────────────────────────────────────────────
+const categories = [
+  { id: '추천코스',      icon: 'routing',   color: '#fe9c00', label: '추천코스' },
+  { id: '음식',         icon: 'cup',        color: '#f97316', label: '음식' },
+  { id: '체험관광',      icon: 'people',    color: '#8b5cf6', label: '체험관광' },
+  { id: '숙박',         icon: 'home',       color: '#0891b2', label: '숙박' },
+  { id: '자연관광',      icon: 'tree',      color: '#16a34a', label: '자연관광' },
+  { id: '쇼핑',         icon: 'shop',       color: '#ec4899', label: '쇼핑' },
+  { id: '문화관광',      icon: 'courthouse', color: '#a16207', label: '문화관광' },
+  { id: '축제/공연/행사', icon: 'music',    color: '#e11d48', label: '축제/행사' },
+  { id: '레저스포츠',    icon: 'activity',  color: '#2563eb', label: '레저스포츠' },
+  { id: '역사관광',      icon: 'building',  color: '#78716c', label: '역사관광' },
+]
+
+const activeCategory = ref(null)
+
+function selectCategory(id) {
+  activeCategory.value = activeCategory.value === id ? null : id
+}
+
+// ── Attractions ───────────────────────────────────────────────────────
+const attractions = ref([])
+const attractionsLoading = ref(false)
+
+onMounted(async () => {
+  attractionsLoading.value = true
+  try {
+    attractions.value = await fetchAttractions()
+  } catch (e) {
+    console.error('[MapPage] 관광지 로드 실패:', e)
+  } finally {
+    attractionsLoading.value = false
+  }
+  fetchCurrentLocation()
+})
+
+const filteredAttractions = computed(() => {
+  const mode = densityModes[courseDensityIndex.value]
+  let list = attractions.value
+
+  if (mode.id === 'local0') {
+    list = list.filter((a) => Number(a.score) === 0)
+  } else {
+    list = list.filter((a) => {
+      const s = Number(a.score)
+      return s >= mode.scoreMin && s <= mode.scoreMax
+    })
+  }
+
+  if (activeCategory.value) {
+    list = list.filter((a) => a.cat1Name === activeCategory.value)
+  }
+
+  return list
+})
+
+// Map store에 마커 동기화
+watch(
+  filteredAttractions,
+  (list) => {
+    mapStore.setMarkers(
+      list
+        .filter((a) => a.lat != null && a.lng != null)
+        .map((a) => ({
+          lat: Number(a.lat),
+          lng: Number(a.lng),
+        })),
+    )
+  },
+  { immediate: true },
+)
+
+// ── GPS ──────────────────────────────────────────────────────────────
 function fetchCurrentLocation() {
   if (!navigator.geolocation) {
     gpsError.value = '이 브라우저는 위치 서비스를 지원하지 않습니다.'
     return
   }
-
   gpsLoading.value = true
   gpsError.value = ''
-
   navigator.geolocation.getCurrentPosition(
     (pos) => {
       const { latitude: lat, longitude: lng } = pos.coords
@@ -54,67 +130,105 @@ function fetchCurrentLocation() {
         default:
           gpsError.value = '위치를 가져오지 못했습니다.'
       }
-      // 3초 후 에러 메시지 자동 제거
       setTimeout(() => { gpsError.value = '' }, 3000)
     },
     { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 },
   )
 }
-
-onMounted(() => {
-  fetchCurrentLocation()
-})
 </script>
 
 <template>
   <div class="map-page">
+
+    <!-- ── Header ─────────────────────────────────────────────── -->
     <header class="map-page__header">
       <h1 class="map-page__title">서울 지도</h1>
-
-      <div class="map-page__search-wrap">
-        <span class="map-page__search-icon">🔍</span>
-        <input
-          v-model="searchQuery"
-          class="map-page__search-input"
-          type="text"
-          placeholder="장소, 지역 검색"
-          readonly
-        />
-      </div>
+      <span v-if="attractionsLoading" class="map-page__loading-badge">로드 중…</span>
+      <span v-else class="map-page__count-badge">{{ filteredAttractions.length }}개 핀</span>
     </header>
 
-    <div class="map-page__chips">
-      <button
-        v-for="area in AREAS"
-        :key="area.label"
-        class="map-page__chip"
-        @click="focusArea(area)"
-      >
-        {{ area.label }}
-      </button>
+    <!-- ── Density Selector ────────────────────────────────────── -->
+    <div class="map-density-bar">
+      <p class="map-density-bar__label">여행 스타일</p>
+      <div class="map-density-bar__control">
+        <button
+          class="map-density-bar__arrow"
+          :disabled="courseDensityIndex === 0"
+          aria-label="이전"
+          @click="changeCourseDensity(-1)"
+        >
+          <ChevronLeft :size="16" :stroke-width="2.5" />
+        </button>
+        <div class="map-density-bar__track">
+          <button
+            v-for="(mode, i) in densityModes"
+            :key="mode.id"
+            class="map-density-bar__pip"
+            :class="{ 'map-density-bar__pip--active': courseDensityIndex === i }"
+            :aria-label="mode.text"
+            @click="courseDensityIndex = i"
+          />
+        </div>
+        <button
+          class="map-density-bar__arrow"
+          :disabled="courseDensityIndex === densityModes.length - 1"
+          aria-label="다음"
+          @click="changeCourseDensity(1)"
+        >
+          <ChevronRight :size="16" :stroke-width="2.5" />
+        </button>
+      </div>
+      <p class="map-density-bar__text">{{ densityModes[courseDensityIndex].text }}</p>
     </div>
 
-    <!-- 에러 토스트 -->
-    <Transition name="toast">
-      <div v-if="gpsError" class="map-page__toast">
-        ⚠️ {{ gpsError }}
-      </div>
-    </Transition>
-
+    <!-- ── Map + Overlays ─────────────────────────────────────── -->
     <div class="map-page__map">
       <MapView />
 
-      <!-- 현재 위치로 재중심 버튼 -->
+      <!-- Category chips overlay -->
+      <div class="map-page__cat-overlay">
+        <button
+          v-for="cat in categories"
+          :key="cat.id"
+          class="map-cat-chip"
+          :class="{ 'map-cat-chip--active': activeCategory === cat.id }"
+          @click="selectCategory(cat.id)"
+        >
+          <IsIcon
+            :name="cat.icon"
+            :variant="activeCategory === cat.id ? 'bulk' : 'twotone'"
+            :size="14"
+            :color="activeCategory === cat.id ? '#fff' : cat.color"
+          />
+          <span class="map-cat-chip__label">{{ cat.label }}</span>
+        </button>
+      </div>
+
+      <!-- GPS 현재 위치 버튼 -->
       <button
         class="map-page__locate-btn"
         :class="{ 'map-page__locate-btn--loading': gpsLoading }"
         :disabled="gpsLoading"
-        @click="fetchCurrentLocation"
         aria-label="현재 위치로 이동"
+        @click="fetchCurrentLocation"
       >
         <span v-if="gpsLoading" class="map-page__locate-spinner"></span>
-        <span v-else>📍</span>
+        <svg v-else xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="8"/>
+          <circle cx="12" cy="12" r="1.5" fill="#555" stroke="none"/>
+          <line x1="12" y1="2" x2="12" y2="5"/>
+          <line x1="12" y1="19" x2="12" y2="22"/>
+          <line x1="2" y1="12" x2="5" y2="12"/>
+          <line x1="19" y1="12" x2="22" y2="12"/>
+        </svg>
       </button>
+
+      <!-- GPS 에러 토스트 -->
+      <Transition name="toast">
+        <div v-if="gpsError" class="map-page__toast">
+          ⚠️ {{ gpsError }}
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
@@ -128,12 +242,12 @@ onMounted(() => {
   padding-bottom: max(64px, calc(64px + env(safe-area-inset-bottom)));
 }
 
-/* 헤더 */
+/* ── Header ─────────────────────────────────────────────────────────── */
 .map-page__header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 20px 10px;
+  gap: 10px;
+  padding: 14px 20px 12px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
   flex-shrink: 0;
@@ -141,82 +255,205 @@ onMounted(() => {
 
 .map-page__title {
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 800;
   color: #1a1a1a;
+  margin: 0;
+  flex: 1;
+}
+
+.map-page__count-badge,
+.map-page__loading-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fff3df;
+  color: #c97000;
+  border: 1px solid #ffe3ba;
   white-space: nowrap;
 }
 
-.map-page__search-wrap {
+.map-page__loading-badge {
+  background: #f0f0f0;
+  color: #999;
+  border-color: #e0e0e0;
+}
+
+/* ── Density Bar ─────────────────────────────────────────────────────── */
+.map-density-bar {
+  background: linear-gradient(110deg, #ffb23f 0%, #fe9c00 48%, #ff8f00 100%);
+  padding: 12px 20px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.map-density-bar__label {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.75);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.map-density-bar__control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.map-density-bar__arrow {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  backdrop-filter: blur(4px);
+}
+
+.map-density-bar__arrow:not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.map-density-bar__arrow:not(:disabled):active {
+  transform: scale(0.92);
+}
+
+.map-density-bar__arrow:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.map-density-bar__track {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 8px;
-  background: #f5f5f3;
-  border-radius: 10px;
-  padding: 8px 12px;
+  justify-content: space-between;
+  gap: 4px;
+  position: relative;
+  padding: 8px 0;
 }
 
-.map-page__search-icon {
-  font-size: 14px;
-  flex-shrink: 0;
+.map-density-bar__track::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 3px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
 }
 
-.map-page__search-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  font-size: 14px;
-  color: #1a1a1a;
-  outline: none;
-}
-
-.map-page__search-input::placeholder {
-  color: #aaa;
-}
-
-/* 지역 칩 */
-.map-page__chips {
-  display: flex;
-  gap: 8px;
-  padding: 10px 20px;
-  overflow-x: auto;
-  scrollbar-width: none;
-  flex-shrink: 0;
-  background: #fff;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.map-page__chips::-webkit-scrollbar {
-  display: none;
-}
-
-.map-page__chip {
-  flex-shrink: 0;
-  padding: 5px 14px;
-  border-radius: 20px;
-  border: 1.5px solid #e0e0e0;
-  background: #fff;
-  font-size: 13px;
-  font-weight: 600;
-  color: #444;
+.map-density-bar__pip {
+  position: relative;
+  z-index: 1;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  transition: all 0.15s;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+  flex-shrink: 0;
 }
 
-.map-page__chip:active {
-  background: #FE9C00;
-  border-color: #FE9C00;
+.map-density-bar__pip:hover {
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.map-density-bar__pip--active {
+  width: 18px;
+  height: 18px;
+  background: #fff;
+  border-color: #fff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.map-density-bar__text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 800;
   color: #fff;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  letter-spacing: -0.2px;
 }
 
-/* 지도 영역 */
+/* ── Map ─────────────────────────────────────────────────────────────── */
 .map-page__map {
   flex: 1;
   min-height: 0;
   position: relative;
 }
 
-/* 현재 위치 버튼 */
+/* ── Category Overlay ────────────────────────────────────────────────── */
+.map-page__cat-overlay {
+  position: absolute;
+  top: 12px;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  gap: 6px;
+  padding: 0 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  pointer-events: none; /* allow touch through gaps */
+}
+
+.map-page__cat-overlay::-webkit-scrollbar {
+  display: none;
+}
+
+.map-cat-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px 6px 8px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1.5px solid rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  cursor: pointer;
+  pointer-events: auto;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.map-cat-chip:active {
+  transform: scale(0.93);
+}
+
+.map-cat-chip--active {
+  background: #fe9c00;
+  border-color: #fe9c00;
+  box-shadow: 0 2px 10px rgba(254, 156, 0, 0.4);
+}
+
+.map-cat-chip__label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #333;
+  white-space: nowrap;
+}
+
+.map-cat-chip--active .map-cat-chip__label {
+  color: #fff;
+}
+
+/* ── GPS Button ──────────────────────────────────────────────────────── */
 .map-page__locate-btn {
   position: absolute;
   bottom: 20px;
@@ -246,24 +483,23 @@ onMounted(() => {
   opacity: 0.7;
 }
 
-/* 로딩 스피너 */
 .map-page__locate-spinner {
   width: 20px;
   height: 20px;
   border: 2.5px solid #e0e0e0;
   border-top-color: #4285F4;
   border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  animation: map-spin 0.8s linear infinite;
 }
 
-@keyframes spin {
+@keyframes map-spin {
   to { transform: rotate(360deg); }
 }
 
-/* 에러 토스트 */
+/* ── Toast ───────────────────────────────────────────────────────────── */
 .map-page__toast {
   position: absolute;
-  top: 0;
+  top: 60px;
   left: 50%;
   transform: translateX(-50%);
   background: rgba(40, 40, 40, 0.88);

@@ -223,17 +223,6 @@ watch(
   <div class="map-view">
     <div ref="mapRef" class="map-view__canvas"></div>
 
-    <div class="map-view__legend">
-      <div class="legend-item"><span class="legend-dot legend-dot--ai"></span>AI 추천 동선</div>
-      <div class="legend-item"><span class="legend-dot legend-dot--suggest"></span>추가 소재</div>
-      <div class="legend-item"><span class="legend-dot legend-dot--facility"></span>동반 편의시설</div>
-      <div class="legend-item crowd-row">
-        <span>혼잡도</span>
-        <span class="crowd-dot crowd-dot--low"></span><span>낮음</span>
-        <span class="crowd-dot crowd-dot--medium"></span><span>보통</span>
-        <span class="crowd-dot crowd-dot--high"></span><span>높음</span>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -249,56 +238,4 @@ watch(
   width: 100%;
   height: 100%;
 }
-
-.map-view__legend {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: rgba(255, 255, 255, 0.92);
-  border-radius: 10px;
-  padding: 8px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-size: 11px;
-  color: #444;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  backdrop-filter: blur(4px);
-  z-index: 10;
-  pointer-events: none;
-}
-
-.legend-item {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.crowd-row {
-  gap: 4px;
-}
-
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.legend-dot--ai       { background: #FE9C00; }
-.legend-dot--suggest  { background: #22c55e; }
-.legend-dot--facility { background: #3b82f6; }
-
-.crowd-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.crowd-dot--low    { background: #22c55e; }
-.crowd-dot--medium { background: #f97316; }
-.crowd-dot--high   { background: #ef4444; }
 </style>
