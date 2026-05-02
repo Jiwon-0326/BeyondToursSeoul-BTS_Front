@@ -1,7 +1,7 @@
 <script setup>
 import { ref, watch } from 'vue'
 import { MessageCircle, Sparkles } from 'lucide-vue-next'
-import { requestAiChat } from '@/services/aiChatService'
+import { requestAiChat, toChatHistoryPayload } from '@/services/aiChatService'
 
 const props = defineProps({
   summaryText: { type: String, default: '' },
@@ -35,11 +35,12 @@ async function sendChat() {
   const t = chatInput.value.trim()
   if (!t || isChatLoading.value) return
   chatError.value = ''
+  const history = toChatHistoryPayload(thread.value)
   thread.value.push({ id: `u-${Date.now()}`, role: 'user', text: t })
   chatInput.value = ''
   isChatLoading.value = true
   try {
-    const data = await requestAiChat(t, 'ko')
+    const data = await requestAiChat(t, 'ko', history)
     thread.value.push({
       id: `a-${Date.now()}`,
       role: 'assistant',

@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { requestAiChat } from '@/services/aiChatService'
+import { requestAiChat, toChatHistoryPayload } from '@/services/aiChatService'
 
 const input = ref('')
 const isLoading = ref(false)
@@ -18,6 +18,7 @@ async function sendMessage() {
   if (!trimmed || isLoading.value) return
 
   error.value = ''
+  const history = toChatHistoryPayload(messages.value)
   messages.value.push({
     id: `u-${Date.now()}`,
     role: 'user',
@@ -27,7 +28,7 @@ async function sendMessage() {
 
   isLoading.value = true
   try {
-    const data = await requestAiChat(trimmed, 'ko')
+    const data = await requestAiChat(trimmed, 'ko', history)
     messages.value.push({
       id: `a-${Date.now()}`,
       role: 'assistant',
