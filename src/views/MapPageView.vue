@@ -1,10 +1,11 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import { IsIcon } from '@ratoufa/iconsax-vue'
 import { useMapStore } from '@/stores/useMapStore'
 import { fetchAttractions } from '@/services/attractionService'
 import MapView from '@/components/map/MapView.vue'
+import AttractionDetailView from '@/views/AttractionDetailView.vue'
 
 const mapStore = useMapStore()
 
@@ -84,14 +85,16 @@ const filteredAttractions = computed(() => {
   return list
 })
 
-// Map store에 마커 동기화
+// Map store에 마커 동기화 (id 포함)
 watch(
   filteredAttractions,
   (list) => {
+    mapStore.selectMarker(null)
     mapStore.setMarkers(
       list
         .filter((a) => a.lat != null && a.lng != null)
         .map((a) => ({
+          id: a.id,
           lat: Number(a.lat),
           lng: Number(a.lng),
         })),
@@ -99,6 +102,20 @@ watch(
   },
   { immediate: true },
 )
+
+// ── Bottom Sheet ─────────────────────────────────────────────────────
+const sheetOpen = computed(() => mapStore.selectedMarkerId != null)
+
+function closeSheet() {
+  mapStore.selectMarker(null)
+}
+
+// ESC 키로 시트 닫기
+function onKeyDown(e) {
+  if (e.key === 'Escape') closeSheet()
+}
+onMounted(() => window.addEventListener('keydown', onKeyDown))
+onUnmounted(() => window.removeEventListener('keydown', onKeyDown))
 
 // ── GPS ──────────────────────────────────────────────────────────────
 function fetchCurrentLocation() {
@@ -230,6 +247,24 @@ function fetchCurrentLocation() {
         </div>
       </Transition>
     </div>
+
+    <!-- ── Bottom Sheet ───────────────────────────────────────── -->
+    <Transition name="sheet">
+      <div v-if="sheetOpen" class="map-sheet">
+        <!-- 반투명 배경 -->
+        <div class="map-sheet__backdrop" @click="closeSheet" />
+
+        <!-- 기존 AttractionDetailView 그대로 임베드 -->
+        <div class="map-sheet__panel">
+          <div class="map-sheet__handle-bar" />
+          <AttractionDetailView
+            :attraction-id="mapStore.selectedMarkerId"
+            class="map-sheet__detail"
+            @close="closeSheet"
+          />
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -240,6 +275,7 @@ function fetchCurrentLocation() {
   height: 100dvh;
   background: #fafaf8;
   padding-bottom: max(64px, calc(64px + env(safe-area-inset-bottom)));
+  position: relative; /* 바텀시트 absolute 기준점 */
 }
 
 /* ── Header ─────────────────────────────────────────────────────────── */
@@ -521,5 +557,74 @@ function fetchCurrentLocation() {
 .toast-leave-to {
   opacity: 0;
   transform: translateX(-50%) translateY(-8px);
+}
+
+/* ── Bottom Sheet ────────────────────────────────────────────────────── */
+.map-sheet {
+  position: absolute;   /* fixed 대신 absolute → 430px 컨테이너 안에 구속 */
+  inset: 0;
+  z-index: 200;
+  pointer-events: none;
+}
+
+.map-sheet__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  pointer-events: auto;
+}
+
+.map-sheet__panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.14);
+  padding-top: 10px;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  height: 60%;
+  overflow: hidden;
+}
+
+.map-sheet__handle-bar {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: #e0e0e0;
+  margin: 0 auto 6px;
+  flex-shrink: 0;
+}
+
+/* AttractionDetailView가 패널 안에서 스크롤 */
+.map-sheet__detail {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Sheet 트랜지션 */
+.sheet-enter-active,
+.sheet-leave-active {
+  transition: opacity 0.25s ease;
+}
+
+.sheet-enter-active .map-sheet__panel,
+.sheet-leave-active .map-sheet__panel {
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.sheet-enter-from,
+.sheet-leave-to {
+  opacity: 0;
+}
+
+.sheet-enter-from .map-sheet__panel,
+.sheet-leave-to .map-sheet__panel {
+  transform: translateY(100%);
 }
 </style>

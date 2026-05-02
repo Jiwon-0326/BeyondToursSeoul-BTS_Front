@@ -87,57 +87,67 @@ function markerColor(type, crowdLevel) {
   return '#FE9C00'
 }
 
-function buildMarkerIcon(label, type, crowdLevel) {
+function buildMarkerIcon(type, crowdLevel, selected = false, id = null) {
   const color = markerColor(type, crowdLevel)
-  const labelHtml = label
-    ? `<span style="
-        display:block;
-        margin-top:4px;
-        font-size:11px;
-        font-weight:600;
-        background:#fff;
-        border-radius:6px;
-        padding:2px 6px;
-        box-shadow:0 1px 4px rgba(0,0,0,.15);
-        white-space:nowrap;
-        color:#333;
-        text-align:center;
-      ">${label}</span>`
+  const size = selected ? 22 : 14
+  const border = selected ? '3px solid #fff' : '2px solid #fff'
+  const shadow = selected
+    ? '0 3px 10px rgba(0,0,0,.35), 0 0 0 4px rgba(254,156,0,0.3)'
+    : '0 2px 6px rgba(0,0,0,.25)'
+  const onclickAttr = id != null
+    ? `onclick="window.__naverPinClick && window.__naverPinClick(${JSON.stringify(id)})" `
     : ''
   return {
     content: `
-      <div style="
-        display:flex;
-        flex-direction:column;
-        align-items:center;
-        cursor:pointer;
-      ">
+      <div
+        ${onclickAttr}
+        style="
+          display:flex;
+          flex-direction:column;
+          align-items:center;
+          justify-content:center;
+          cursor:pointer;
+          width:30px;
+          height:30px;
+        "
+      >
         <div style="
-          width:16px;height:16px;
+          width:${size}px;height:${size}px;
           border-radius:50%;
-          background:${color};
-          border:2px solid #fff;
-          box-shadow:0 2px 6px rgba(0,0,0,.25);
+          background:${selected ? '#FF6B00' : color};
+          border:${border};
+          box-shadow:${shadow};
+          pointer-events:none;
         "></div>
-        ${labelHtml}
       </div>`,
-    anchor: new window.naver.maps.Point(8, 16),
+    anchor: new window.naver.maps.Point(15, 15),
   }
 }
 
 // ── 마커 동기화 ────────────────────────────────────────────────
 function syncMarkers(markers) {
-  naverMarkers.forEach(m => m.setMap(null))
+  naverMarkers.forEach(({ nm }) => nm.setMap(null))
   naverMarkers = []
 
   markers.forEach(marker => {
     if (marker.lat == null || marker.lng == null) return
+    const isSelected = mapStore.selectedMarkerId === marker.id
     const nm = new window.naver.maps.Marker({
       position: new window.naver.maps.LatLng(marker.lat, marker.lng),
       map: mapInstance,
-      icon: buildMarkerIcon(marker.label, marker.type, marker.crowdLevel),
+      icon: buildMarkerIcon(marker.type, marker.crowdLevel, isSelected, marker.id),
+      zIndex: isSelected ? 100 : 10,
     })
-    naverMarkers.push(nm)
+    naverMarkers.push({ nm, marker })
+  })
+}
+
+// ── 선택 마커만 아이콘 갱신 ────────────────────────────────────
+function syncSelectedMarker(selectedId) {
+  naverMarkers.forEach(({ nm, marker }) => {
+    const isSelected = marker.id === selectedId
+    nm.setIcon(buildMarkerIcon(marker.type, marker.crowdLevel, isSelected, marker.id))
+    nm.setZIndex(isSelected ? 100 : 10)
   })
 }
 
@@ -163,6 +173,11 @@ function syncPolyline(points) {
 
 // ── 지도 초기화 ────────────────────────────────────────────────
 onMounted(async () => {
+  // 글로벌 핀 클릭 핸들러 등록 (마커 content HTML의 onclick에서 호출)
+  window.__naverPinClick = (id) => {
+    mapStore.selectMarker(id)
+  }
+
   window.navermap_authFailure = () => {
     console.error('[NaverMap] 인증 실패: ncpKeyId를 확인하세요.')
   }
@@ -185,10 +200,11 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  naverMarkers.forEach(m => m.setMap(null))
+  naverMarkers.forEach(({ nm }) => nm.setMap(null))
   if (naverPolyline) naverPolyline.setMap(null)
   if (currentLocationMarker) currentLocationMarker.setMap(null)
   mapInstance = null
+  delete window.__naverPinClick
   delete window.navermap_authFailure
 })
 
@@ -197,6 +213,11 @@ watch(
   () => mapStore.markers,
   (markers) => { if (mapInstance) syncMarkers(markers) },
   { deep: true },
+)
+
+watch(
+  () => mapStore.selectedMarkerId,
+  (id) => { if (mapInstance) syncSelectedMarker(id) },
 )
 
 watch(

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   ChevronLeft,
@@ -16,6 +16,12 @@ import {
 } from 'lucide-vue-next'
 import { fetchAttractionById } from '@/services/attractionService'
 
+const props = defineProps({
+  // 임베드 모드: 이 prop이 있으면 route.params.id 대신 사용
+  attractionId: { default: null },
+})
+const emit = defineEmits(['close'])
+
 const router = useRouter()
 const route  = useRoute()
 
@@ -25,15 +31,28 @@ const error        = ref(null)
 const isLiked      = ref(false)
 const showAllDesc  = ref(false)
 
-onMounted(async () => {
-  try {
-    attraction.value = await fetchAttractionById(route.params.id)
-  } catch (e) {
-    error.value = e.message
-  } finally {
-    loading.value = false
-  }
-})
+// props.attractionId 또는 route.params.id 중 유효한 값 사용
+const resolvedId = computed(() => props.attractionId ?? route.params.id)
+
+watch(
+  resolvedId,
+  async (id) => {
+    if (!id) return
+    loading.value = true
+    error.value = null
+    attraction.value = null
+    isLiked.value = false
+    showAllDesc.value = false
+    try {
+      attraction.value = await fetchAttractionById(id)
+    } catch (e) {
+      error.value = e.message
+    } finally {
+      loading.value = false
+    }
+  },
+  { immediate: true },
+)
 
 // ── 필드 정규화 ────────────────────────────────────────────────────────────
 const d = computed(() => {
@@ -74,6 +93,10 @@ const shortDesc = computed(() => {
 
 // ── 액션 ──────────────────────────────────────────────────────────────────
 function goBack() {
+  if (props.attractionId != null) {
+    emit('close')
+    return
+  }
   if (window.history.length > 1) router.back()
   else router.push('/discover')
 }
