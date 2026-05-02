@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import { requestAiChat } from '@/services/aiChatService'
+import { requestAiChat, toChatHistoryPayload } from '@/services/aiChatService'
+import { renderMarkdownHtml } from '@/utils/renderMarkdown'
 
 const input = ref('')
 const isLoading = ref(false)
@@ -18,6 +19,7 @@ async function sendMessage() {
   if (!trimmed || isLoading.value) return
 
   error.value = ''
+  const history = toChatHistoryPayload(messages.value)
   messages.value.push({
     id: `u-${Date.now()}`,
     role: 'user',
@@ -27,11 +29,14 @@ async function sendMessage() {
 
   isLoading.value = true
   try {
-    const data = await requestAiChat(trimmed, 'ko')
+    const data = await requestAiChat(trimmed, 'ko', history)
     messages.value.push({
       id: `a-${Date.now()}`,
       role: 'assistant',
       text: data.answer || '응답을 받지 못했습니다.',
+      markdown: true,
+      structured: data.structured,
+      model: data.model,
     })
   } catch (e) {
     error.value = e.message || '요청 중 오류가 발생했습니다.'
@@ -53,9 +58,17 @@ async function sendMessage() {
         v-for="msg in messages"
         :key="msg.id"
         class="ai-chat__bubble"
-        :class="msg.role === 'user' ? 'ai-chat__bubble--user' : 'ai-chat__bubble--assistant'"
+        :class="[
+          msg.role === 'user' ? 'ai-chat__bubble--user' : 'ai-chat__bubble--assistant',
+          msg.markdown ? 'ai-chat__bubble--md' : '',
+        ]"
       >
-        {{ msg.text }}
+        <div
+          v-if="msg.role === 'assistant' && msg.markdown"
+          class="ai-chat__md"
+          v-html="renderMarkdownHtml(msg.text)"
+        />
+        <template v-else>{{ msg.text }}</template>
       </article>
       <p v-if="error" class="ai-chat__error">{{ error }}</p>
     </div>
@@ -116,6 +129,28 @@ async function sendMessage() {
 .ai-chat__bubble--assistant {
   background: #f7f6f2;
   color: #3f3f3f;
+}
+
+.ai-chat__bubble--md.ai-chat__bubble--assistant {
+  white-space: normal;
+}
+
+.ai-chat__md :deep(p) {
+  margin: 0 0 0.4em;
+}
+
+.ai-chat__md :deep(p:last-child) {
+  margin-bottom: 0;
+}
+
+.ai-chat__md :deep(ul),
+.ai-chat__md :deep(ol) {
+  margin: 0.3em 0;
+  padding-left: 1.1em;
+}
+
+.ai-chat__md :deep(strong) {
+  font-weight: 800;
 }
 
 .ai-chat__bubble--user {
