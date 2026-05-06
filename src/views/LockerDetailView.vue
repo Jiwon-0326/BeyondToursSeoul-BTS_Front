@@ -131,6 +131,66 @@ function shareLocker() {
   if (navigator.share) navigator.share({ title: name, url })
   else navigator.clipboard?.writeText(url)
 }
+
+/** API sizeInfo 문자열 → 소형/중형/대형별 가로·깊이·높이 목록 */
+function parseLockerSizeInfo(raw) {
+  if (raw == null || typeof raw !== 'string') return null
+  const text = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim()
+  if (!text) return null
+
+  const dimKeys = ['가로', '깊이', '높이']
+  const positions = dimKeys
+    .map((key) => ({ key, idx: text.indexOf(`${key}:`) }))
+    .filter((p) => p.idx >= 0)
+    .sort((a, b) => a.idx - b.idx)
+
+  if (positions.length === 0) return null
+
+  const byDim = {}
+  for (let i = 0; i < positions.length; i++) {
+    const { key, idx } = positions[i]
+    const start = idx + key.length + 1
+    const end = i + 1 < positions.length ? positions[i + 1].idx : text.length
+    let chunk = text.slice(start, end).trim().replace(/^,\s*/, '')
+    byDim[key] = extractLockerSizeLines(chunk)
+  }
+
+  const categories = ['소형', '중형', '대형']
+  const dimOrder = ['가로', '깊이', '높이']
+  const rows = []
+  for (const cat of categories) {
+    const dims = []
+    for (const lbl of dimOrder) {
+      const v = byDim[lbl]?.[cat]
+      if (v) dims.push({ label: lbl, value: v })
+    }
+    if (dims.length) rows.push({ category: cat, dims })
+  }
+  return rows.length ? rows : null
+}
+
+/** 블록 안의 「・ 소형 : 50(cm)」 패턴 추출 */
+function extractLockerSizeLines(blockText) {
+  const map = { 소형: '', 중형: '', 대형: '' }
+  const re = /[・·•]\s*(소형|중형|대형)\s*:\s*([^\n・·•]+?)(?=\s*[・·•]|$)/g
+  let m
+  while ((m = re.exec(blockText)) !== null) {
+    const val = m[2].replace(/,/g, '').trim()
+    if (val) map[m[1]] = val
+  }
+  if (!map['소형'] && !map['중형'] && !map['대형']) {
+    for (const line of blockText.split('\n')) {
+      const parts = line.split(/[・·•]/).map((s) => s.trim()).filter(Boolean)
+      for (const p of parts) {
+        const mm = p.match(/^(소형|중형|대형)\s*:\s*(.+)$/)
+        if (mm) map[mm[1]] = mm[2].replace(/,/g, '').trim()
+      }
+    }
+  }
+  return map
+}
+
+const sizeInfoStructured = computed(() => parseLockerSizeInfo(d.value?.sizeInfo))
 </script>
 
 <template>
@@ -211,7 +271,24 @@ function shareLocker() {
 
         <section v-if="d.sizeInfo" class="ld__section">
           <h2 class="ld__section-title">보관함 크기</h2>
-          <p class="ld__text ld__text--pre">{{ d.sizeInfo.replace(/\r\n/g, '\n') }}</p>
+          <div v-if="sizeInfoStructured?.length" class="ld__size-wrap">
+            <div
+              v-for="row in sizeInfoStructured"
+              :key="row.category"
+              class="ld__size-group"
+            >
+              <h3 class="ld__size-cat">{{ row.category }} :</h3>
+              <ul class="ld__size-list">
+                <li v-for="dim in row.dims" :key="row.category + dim.label" class="ld__size-item">
+                  <span class="ld__size-bullet" aria-hidden="true">-</span>
+                  <span class="ld__size-dim">{{ dim.label }}</span>
+                  <span class="ld__size-colon">:</span>
+                  <span class="ld__size-val">{{ dim.value }}</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+          <p v-else class="ld__text ld__text--pre">{{ d.sizeInfo.replace(/\r\n/g, '\n') }}</p>
         </section>
 
         <div v-if="d.sizeInfo" class="ld__divider" />
@@ -489,6 +566,65 @@ function shareLocker() {
 .ld__text--pre {
   white-space: pre-wrap;
   word-break: keep-all;
+}
+
+.ld__size-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ld__size-group {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #f7faf9;
+  border: 1px solid #e2e8e6;
+}
+
+.ld__size-cat {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #0f766e;
+}
+
+.ld__size-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ld__size-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 6px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ld__size-bullet {
+  color: #94a3b8;
+  font-weight: 700;
+  width: 12px;
+  flex-shrink: 0;
+}
+
+.ld__size-dim {
+  font-weight: 700;
+  color: #475569;
+}
+
+.ld__size-colon {
+  color: #94a3b8;
+}
+
+.ld__size-val {
+  color: #1e293b;
+  font-weight: 600;
 }
 
 .ld__time-list {
