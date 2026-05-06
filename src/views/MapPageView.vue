@@ -6,6 +6,7 @@ import { useMapStore } from '@/stores/useMapStore'
 import { fetchAttractions, fetchLockers } from '@/services/attractionService'
 import MapView from '@/components/map/MapView.vue'
 import AttractionDetailView from '@/views/AttractionDetailView.vue'
+import LockerDetailView from '@/views/LockerDetailView.vue'
 
 const mapStore = useMapStore()
 
@@ -131,6 +132,17 @@ watch(
 
 // ── Bottom Sheet ─────────────────────────────────────────────────────
 const sheetOpen = computed(() => mapStore.selectedMarkerId != null)
+
+const isLockerSheet = computed(() => {
+  const id = mapStore.selectedMarkerId
+  return typeof id === 'string' && id.startsWith('locker-')
+})
+
+const lockerSheetId = computed(() => {
+  if (!isLockerSheet.value) return null
+  const raw = String(mapStore.selectedMarkerId).replace(/^locker-/, '')
+  return raw || null
+})
 
 function closeSheet() {
   mapStore.selectMarker(null)
@@ -295,7 +307,14 @@ function fetchCurrentLocation() {
         <!-- 기존 AttractionDetailView 그대로 임베드 -->
         <div class="map-sheet__panel">
           <div class="map-sheet__handle-bar" />
+          <LockerDetailView
+            v-if="isLockerSheet && lockerSheetId"
+            :locker-id="lockerSheetId"
+            class="map-sheet__detail"
+            @close="closeSheet"
+          />
           <AttractionDetailView
+            v-else-if="!isLockerSheet"
             :attraction-id="mapStore.selectedMarkerId"
             class="map-sheet__detail"
             @close="closeSheet"
