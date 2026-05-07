@@ -302,6 +302,12 @@ function goToAttraction(id) {
   router.push({ name: 'attraction-detail', params: { id } })
 }
 
+function goToEvent(contentId) {
+  const sid = contentId != null ? String(contentId).trim() : ''
+  if (!sid) return
+  router.push({ name: 'event-detail', params: { id: sid } })
+}
+
 function onCourseGenerated() {
   showAISheet.value = false
   router.push('/result')
@@ -632,10 +638,12 @@ watch(
           </p>
 
           <template v-else>
-            <article
+            <button
               v-for="ev in pagedEvents"
               :key="ev.contentId"
+              type="button"
               class="attraction-card attraction-card--event"
+              @click="goToEvent(ev.contentId)"
             >
               <div class="attraction-card__thumb-wrap">
                 <img
@@ -658,7 +666,8 @@ watch(
                   </span>
                 </div>
               </div>
-            </article>
+              <ChevronRight :size="16" :stroke-width="2.2" class="attraction-card__arrow" />
+            </button>
 
             <div v-if="totalEventPages > 1" class="discover__pagination">
               <button
@@ -1482,16 +1491,9 @@ watch(
 }
 
 .attraction-card--event {
-  cursor: default;
   margin: 0;
   width: 100%;
   box-sizing: border-box;
-}
-
-.attraction-card--event:active {
-  transform: none;
-  background: #fafaf8;
-  border-color: #efefed;
 }
 
 .attraction-card__thumb-wrap {
