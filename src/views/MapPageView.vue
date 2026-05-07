@@ -32,16 +32,13 @@ function changeCourseDensity(delta) {
 
 // ── Categories ───────────────────────────────────────────────────────
 const categories = [
-  { id: '추천코스',      icon: 'routing',   color: '#fe9c00', label: '추천코스' },
   { id: '음식',         icon: 'cup',        color: '#f97316', label: '음식' },
-  { id: '체험관광',      icon: 'people',    color: '#8b5cf6', label: '체험관광' },
-  { id: '숙박',         icon: 'home',       color: '#0891b2', label: '숙박' },
-  { id: '자연관광',      icon: 'tree',      color: '#16a34a', label: '자연관광' },
   { id: '쇼핑',         icon: 'shop',       color: '#ec4899', label: '쇼핑' },
+  { id: '체험관광',      icon: 'people',    color: '#8b5cf6', label: '체험관광' },
+  { id: '자연관광',      icon: 'tree',      color: '#16a34a', label: '자연관광' },
   { id: '문화관광',      icon: 'courthouse', color: '#a16207', label: '문화관광' },
-  { id: '축제/공연/행사', icon: 'music',    color: '#e11d48', label: '축제/행사' },
-  { id: '레저스포츠',    icon: 'activity',  color: '#2563eb', label: '레저스포츠' },
   { id: '역사관광',      icon: 'building',  color: '#78716c', label: '역사관광' },
+  { id: '레저스포츠',    icon: 'activity',  color: '#2563eb', label: '레저스포츠' },
 ]
 
 const activeCategory = ref(null)
